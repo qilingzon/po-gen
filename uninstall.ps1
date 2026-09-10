@@ -10,6 +10,9 @@ if (-not $DshHome) { $DshHome = $env:DSH_HOME }
 if (-not $DshHome) { $DshHome = Join-Path $env:USERPROFILE '.dsh' }
 $tgt = Join-Path (Join-Path $DshHome 'plugins') $internalId
 if (Test-Path $tgt) { Remove-Item $tgt -Recurse -Force; Write-Output "[OK] 已移除 $tgt" } else { Write-Output "[i] 插件目录不存在" }
+# 生产解析位同步清除（B18：desktop bundle 从 node_modules 解析）
+$nmTgt = Join-Path (Join-Path $DshHome 'node_modules') $internalId
+if (Test-Path $nmTgt) { Remove-Item $nmTgt -Recurse -Force; Write-Output "[OK] 已移除解析副本 $nmTgt" } else { Write-Output "[i] 无解析副本" }
 foreach ($p in $Profiles) {
   $pj = Join-Path (Join-Path $DshHome 'profiles') "$p\package.json"
   if (Test-Path $pj) {
