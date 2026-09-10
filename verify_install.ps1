@@ -63,6 +63,12 @@ $csv = Join-Path $PSScriptRoot ('verify_' + $Generation + '.csv')
 $results | Export-Csv $csv -NoTypeInformation -Encoding UTF8
 Write-Output ("=== 结构检查: " + ($results.Count - $fail) + "/" + $results.Count + " PASS → " + $csv)
 if ($fail -gt 0) { exit 1 }
+# B19 纪律：实弹 smoke 会向目标 home 写入临时 profile（污染生产 home）。默认仅实验室 home 允许；
+# 生产 home（~/.dsh）实弹验证需显式 -YesIMeanIt，且跑完手动清除 po-smoke profile。
+if ($Smoke -and ($DshHome -like '*\.dsh') -and (-not $YesIMeanIt)) {
+  Write-Output '[i] 生产 home 实弹 smoke 已跳过（B19：结构校验+实验室同构建行为证明已足够）。确需实弹请加 -YesIMeanIt'
+  exit 0
+}
 if (-not $Smoke) { Write-Output '[i] 注入实弹 smoke 未启用（-Smoke）'; exit 0 }
 
 # 5. 注入实弹 smoke：无 GUI 冒烟 profile（base+headless+插件）跑一道 crack 题，验证首句槽位
