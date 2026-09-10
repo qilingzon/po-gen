@@ -1,0 +1,41 @@
+{
+  "name": "po-gen-4",
+  "version": "0.4.0",
+  "description": "DeepSeek Harness 破甲插件「无限四代」：意图化拒绝封禁 + SPEC LOCK 需求保真 + 中途坚持 + 防漂移锚 + 供应商审核对抗 v4 + 单遍防超时纪律（SPEED & SINGLE-PASS v4） + 再注入顾问，客户端显示「破甲已开启」状态条与四态实时判定。",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "install.sh",
+    "uninstall.sh",
+    "HARNESS_PLUGIN.md",
+    "README.md",
+    "LICENSE",
+    "assets",
+    "prompts"
+  ],
+  "scripts": {
+    "harness:check": "node --check index.js && node --check client.js"
+  },
+  "dsh": {
+    "id": "dsh-infinite-gen-4",
+    "name": "无限四代",
+    "version": "0.4.0",
+    "repo": "local/gen4-lab",
+    "permissions": "系统提示词注入, 客户端状态条, 会话投影, 再注入顾问",
+    "client": {
+      "platform": "web",
+      "immediately": true
+    },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
