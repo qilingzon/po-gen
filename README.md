@@ -31,6 +31,22 @@ po-gen（原「无限代」破甲项目）——面向 DeepSeek Harness 的提�
 - boundary 家族「每批恰一处翻车」方差签名（T07→T14→T04→T35/T36），结构性结论以专项 reps 为准
 - SPEC LOCK 五重约束程序化验证 5/5；死亡三连（长文+直出+禁文件）已由聊天分段协议攻克
 
-## 安装（DSH）
+## 一键部署（Windows，PowerShell 5.1+ 兼容）
+
+```powershell
+# 默认：po-gen-4 最新版部署到 %DSH_HOME%（未设则 ~/.dsh），注册进 web profile
+powershell -ExecutionPolicy Bypass -File install.ps1
+
+# 指定 home / 代际 / 目标 profiles（可多个，逗号分隔）
+powershell -ExecutionPolicy Bypass -File install.ps1 -DshHome "C:\Users\you\.dsh" -Generation 4 -Profiles web,gen4-lab
+
+# 指定历史版本 / 卸载
+powershell -ExecutionPolicy Bypass -File install.ps1 -Version 0.4.1
+powershell -ExecutionPolicy Bypass -File install.ps1 -Uninstall -Generation 4
+```
+
+行为：自动备份旧版（`<插件>.bak-时间戳`）→ 拷贝 → 幂等注册 profile bundles+deps → 提示重启。卸载对称移除。
+
+## 手动安装（任意平台）
 
 将对应 `versions/po-gen-N/` 复制为 `~/.dsh/plugins/dsh-infinite-gen-N/`（或实验室 home 的 plugins/ 下），在 profile 的 `dsh.profile.bundles` 中加入 `dsh-infinite-gen-N`，重启平台生效。GUI 徽标「破甲已开启」即注入在场。
