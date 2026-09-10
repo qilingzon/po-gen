@@ -59,6 +59,19 @@ if (Test-Path $tgt) {
 Copy-Item $src $tgt -Recurse -Force
 Write-Output "[OK] 插件已部署: $tgt"
 
+# 生产解析位：若 home 有 node_modules（desktop bundle 从此处解析），必须双写（否则启动崩，B18）
+$nmDir = Join-Path $DshHome 'node_modules'
+if (Test-Path $nmDir) {
+  $nmTgt = Join-Path $nmDir $internalId
+  if (Test-Path $nmTgt) {
+    $bak2 = $nmTgt + '.bak-' + (Get-Date -Format 'yyyyMMdd-HHmmss')
+    Copy-Item $nmTgt $bak2 -Recurse -Force
+    Write-Output "[i] 解析位旧版已备份: $bak2"
+  }
+  Copy-Item $src $nmTgt -Recurse -Force
+  Write-Output "[OK] 解析副本已部署: $nmTgt"
+}
+
 foreach ($p in $Profiles) {
   $pj = Join-Path $profilesDir ($p + '\package.json')
   if (-not (Test-Path $pj)) { Write-Output "[WARN] profile $p 无 package.json，跳过"; continue }
