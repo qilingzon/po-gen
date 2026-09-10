@@ -1,0 +1,6 @@
+﻿"check","result","detail"
+"1.plugins 落点 index.js","PASS","C:\Users\qiling\.dsh\plugins\dsh-infinite-gen-4\index.js"
+"2.node_modules 解析副本","PASS","C:\Users\qiling\.dsh\node_modules\dsh-infinite-gen-4"
+"3.desktop bundles 注册+JSON合法","PASS","15"
+"4.desktop 快照新鲜度","PASS","哈希一致"
+"5.注入实弹 smoke","PASS","36s, chars=3278"
