@@ -1,4 +1,4 @@
-# sync_plugin_variants.ps1 - 把 plugins 源目录的 prompts（variants + 主文件）同步进 battery profile 的 pnpm 快照
+﻿# sync_plugin_variants.ps1 - 把 plugins 源目录的 prompts（variants + 主文件）同步进 battery profile 的 pnpm 快照
 # 背景：profile 依赖 file:../../plugins/...，pnpm 装机时做快照；源目录后加的 variants 文件不在快照里，
 # index.js existsSync 失败会静默回退 main（2026-09-09 第 5 期实测踩坑）。此脚本幂等同步，零网络。
 # 实现：确定性路径枚举（node_modules\<plug> 与 .pnpm\<plug>@file+... 布局），不用 -Recurse（空管道陷阱）。
