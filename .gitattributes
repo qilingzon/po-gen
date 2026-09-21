@@ -7,6 +7,17 @@
 # Force LF for shell scripts so a clone on any platform yields a runnable installer.
 *.sh text eol=lf
 
+# Docs / JSON / JS: also LF (a Windows checkout otherwise dirties README/DEPLOY_LINUX
+# on every edit and makes the `git pull --ff-only` inside `po-gen.sh update` fail).
+*.md    text eol=lf
+*.json  text eol=lf
+*.jsonl text eol=lf
+*.js    text eol=lf
+*.mjs   text eol=lf
+*.txt   text eol=lf
+*.yaml  text eol=lf
+*.yml   text eol=lf
+
 # Windows-only launchers keep CRLF (cmd.exe / PowerShell are happiest with it).
 *.bat text eol=crlf
 *.cmd text eol=crlf
