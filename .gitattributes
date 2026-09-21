@@ -1,0 +1,12 @@
+# Line-ending policy.
+#
+# WHY (2026-09-21): the v0.4.6 snapshot is meant to be deployed on a Linux VPS with
+# `chmod +x install.sh && ./install.sh`. Git on Windows warns "LF will be replaced by CRLF",
+# and a shell script checked out with CRLF dies on Linux with
+# `bash: ./install.sh: /usr/bin/env: bad interpreter: No such file or directory`.
+# Force LF for shell scripts so a clone on any platform yields a runnable installer.
+*.sh text eol=lf
+
+# Windows-only launchers keep CRLF (cmd.exe / PowerShell are happiest with it).
+*.bat text eol=crlf
+*.cmd text eol=crlf
