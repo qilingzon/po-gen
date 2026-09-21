@@ -7,6 +7,7 @@
 #    ./po-gen.sh uninstall   [--version v0.4.6] [--home PATH] [--profile NAME]
 #    ./po-gen.sh update      [--version v0.4.6] [--home PATH] [--profile NAME]
 #    ./po-gen.sh restart     [--dry-run]     # 重启宿主（插件服务端半体只在宿主启动时加载）
+#    ./po-gen.sh verify      [--home PATH] [--profile NAME]   # 逐文件校验物化结果（源 vs node_modules）
 #    ./po-gen.sh doctor      [--home PATH] [--profile NAME]
 #    ./po-gen.sh status      [--home PATH] [--profile NAME]
 #    ./po-gen.sh list
@@ -164,23 +165,33 @@ do_restart() {
   fi
 
   kill $pids 2>/dev/null || true
-  local i
+  # 等旧进程**真的退出**（最多 20 秒）——判据是「还在 → 继续等」，
+  # 写反了会在第一个 tick 就 break，然后把旧 PID 当新 PID 报成功（2026-09-21 实际踩到）。
+  local i newpids
+  local killfile; killfile="$(mktemp)"; printf '%s\n' $pids >"$killfile"
   for i in $(seq 1 20); do
-    sleep 1
-    [[ -z "$(dsh_host_pids)" ]] || break
-  done
-  # 给 keeper 一点时间拉起
-  for i in $(seq 1 10); do
-    [[ -n "$(dsh_host_pids)" ]] && break
+    if ! dsh_host_pids | grep -qF -x -f "$killfile"; then break; fi
     sleep 1
   done
+  if dsh_host_pids | grep -qF -x -f "$killfile"; then
+    warn "旧进程 20 秒内没有退出（可能忽略了 SIGTERM）"
+    info "可强制：kill -9 $(echo $pids | tr '\n' ' ')"
+  fi
+  # 等 keeper / systemd 拉起**新** PID（最多 30 秒），且新 PID 必须不在被杀的集合里
+  newpids=""
+  for i in $(seq 1 30); do
+    newpids="$(dsh_host_pids | grep -vF -x -f "$killfile" || true)"
+    [[ -n "$newpids" ]] && break
+    sleep 1
+  done
+  rm -f "$killfile"
 
-  newpids="$(dsh_host_pids)"
   if [[ -n "$newpids" ]]; then
     ok "宿主已重启，新 PID：$(echo $newpids | tr '\n' ' ')"
+    info "（旧 PID：$(echo $pids | tr '\n' ' ')）"
     return 0
   fi
-  warn "宿主退出后没有自动回来（没有 keeper 或 keeper 未生效）"
+  warn "旧进程已退出，但没有探测到新宿主（没有 keeper 或 keeper 未生效）"
   info "手动启动命令（沿用原参数）："
   info "  $cmdline"
   return 1
@@ -200,7 +211,7 @@ post_install_restart() {
 
 case "$ACTION" in
   help|"")
-    sed -n '3,22p' "$SELF" | sed 's/^# \{0,1\}//'
+    sed -n '3,23p' "$SELF" | sed 's/^# \{0,1\}//'
     exit 0
     ;;
 
@@ -259,6 +270,58 @@ case "$ACTION" in
     exit $?
     ;;
 
+  verify)
+    step "物化校验：插件源目录 vs node_modules（宿主实际加载的那份）"
+    PD="$(find_profile_dir "$DSH_ROOT" 2>/dev/null || true)"
+    [[ -n "$PD" ]] || { err "未找到 profile（试试 --profile NAME 或 --home PATH）"; exit 1; }
+    SRC="$DSH_ROOT/plugins/$PLUGIN_NAME"
+    DST="$PD/node_modules/$PLUGIN_NAME"
+    echo "    插件源目录 : $SRC"
+    echo "    node_modules: $DST"
+    if [[ -L "$DST" ]]; then echo "    类型       : 符号链接 → $(readlink -f "$DST")"; 
+    elif [[ -d "$DST" ]]; then echo "    类型       : 真实目录（pnpm 物化拷贝）"
+    else err "node_modules 里没有 $PLUGIN_NAME（未安装或未物化）"; exit 1; fi
+
+    MISS=0
+    for f in index.js preheat.js client.js cordis.patch.yml package.json; do
+      if [[ -f "$SRC/$f" ]]; then
+        if [[ -f "$DST/$f" ]]; then
+          A="$(sha256sum "$SRC/$f" | cut -c1-12)"; B="$(sha256sum "$DST/$f" | cut -c1-12)"
+          if [[ "$A" == "$B" ]]; then printf "    [OK] %-20s %s\n" "$f" "$A"
+          else printf "    [X]  %-20s 内容不同  源=%s  物化=%s\n" "$f" "$A" "$B"; MISS=1; fi
+        else printf "    [X]  %-20s **缺失**（源目录有，node_modules 没有 ← 宿主会崩在这里）\n" "$f"; MISS=1; fi
+      fi
+    done
+
+    HPIDS="$(dsh_host_pids)"
+    if [[ -n "$HPIDS" ]]; then
+      FIRST="$(echo "$HPIDS" | head -1)"
+      echo "    宿主进程   : PID $(echo $HPIDS | tr '\n' ' ')"
+      echo "    宿主启动于 : $(ps -o lstart= -p "$FIRST" 2>/dev/null | sed 's/^ *//')"
+    else
+      DPID="$(desktop_pids | head -1)"
+      [[ -n "$DPID" ]] && echo "    宿主进程   : 桌面端 PID $DPID（DSH Desktop）" || echo "    宿主进程   : 未运行"
+    fi
+
+    echo
+    if [[ "$MISS" == "0" ]]; then
+      ok "物化结果与源目录一致（index.js / preheat.js 都在）"
+      info "若行为仍未变：确认宿主是重启之后启动的（见上面「宿主启动于」）。"
+      info "看日志里报错是不是旧进程留下的："
+      info "  ls -l /var/log/dsh*.log; grep -n 'ERR_MODULE_NOT_FOUND\\|plugin tree failed' /var/log/dsh.err.log | tail -5"
+    else
+      err "node_modules 里的物化结果不完整 —— 宿主启动必崩（这正是 preheat.js 那个事故）"
+      info "修：重跑安装（会自动清 .pnpm 旧快照 + 逐文件补齐）"
+      info "  $0 install"
+      info "或手动一步到位（源目录覆盖物化拷贝）："
+      info "  rm -rf '$DST'; mkdir -p '$DST'; cp -a '$SRC/.' '$DST/'"
+      info "  rm -rf '$PD'/node_modules/.pnpm/*$PLUGIN_NAME*   # 顺手清掉 pnpm 的陈旧快照"
+      info "然后重启宿主：$0 restart"
+      exit 1
+    fi
+    exit 0
+    ;;
+
   restart)
     step "重启 DSH 宿主"
     do_restart
@@ -302,7 +365,7 @@ case "$ACTION" in
     ;;
 
   *)
-    err "未知动作：$ACTION（可用：install / uninstall / update / restart / doctor / status / list）"
+    err "未知动作：$ACTION（可用：install / uninstall / update / restart / verify / doctor / status / list）"
     exit 2
     ;;
 esac

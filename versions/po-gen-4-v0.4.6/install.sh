@@ -305,26 +305,89 @@ ok "依赖已写入；bundles 暂未注册（这样即使下一步失败，DSH �
 
 # ---------- [5] pnpm install ----------
 step "安装依赖（pnpm install）"
-if [[ -d "$PROFILE_DIR/node_modules/$PLUGIN_NAME" ]]; then
-  rm -rf "$PROFILE_DIR/node_modules/$PLUGIN_NAME"
-  ok "已清除 node_modules 旧拷贝，pnpm 将重新同步"
+NM="$PROFILE_DIR/node_modules"
+# 彻底清掉旧物化：**顶层条目 + pnpm 虚拟 store 里的旧快照**。
+# 为什么必须两个都删（2026-09-21 真实事故）：pnpm 对 `file:` 目录依赖会在
+# node_modules/.pnpm/ 下留一份物化快照；只删顶层条目时，pnpm 会用**旧快照**重建顶层条目
+# ⇒ node_modules 里永远缺 preheat.js，宿主启动就 ERR_MODULE_NOT_FOUND。
+if [[ -e "$NM/$PLUGIN_NAME" || -L "$NM/$PLUGIN_NAME" ]]; then
+  rm -rf "$NM/$PLUGIN_NAME"
+  ok "已清除 node_modules 顶层旧条目"
 fi
-if ! ( cd "$PROFILE_DIR" && pnpm install ); then
+if compgen -G "$NM/.pnpm/*$PLUGIN_NAME*" >/dev/null 2>&1; then
+  rm -rf "$NM"/.pnpm/*"$PLUGIN_NAME"*
+  ok "已清除 pnpm 虚拟 store 旧快照（.pnpm/*$PLUGIN_NAME*）"
+fi
+PNPM_FORCE=""
+if pnpm install --help 2>&1 | grep -q -- '--force'; then PNPM_FORCE="--force"; fi
+if ! ( cd "$PROFILE_DIR" && pnpm install $PNPM_FORCE ); then
   err "pnpm install 失败。"
   err "常见原因：VPS 无外网 / registry 不通 / pnpm 版本过老。"
   err "可手动重试：cd $PROFILE_DIR && pnpm install"
   exit 1   # trap 会回滚 package.json
 fi
-ok "依赖安装完成"
+ok "依赖安装完成${PNPM_FORCE:+（用了 $PNPM_FORCE）}"
 
-# ---------- [6] 校验插件可解析（**注册之前**） ----------
-step "校验插件可解析"
+# ---------- [6] 逐文件校验物化结果，不齐就补 ----------
+step "校验插件可解析（逐文件 sha256 比对 + ESM 导入）"
 RESOLVED="$PROFILE_DIR/node_modules/$PLUGIN_NAME"
 [[ -f "$RESOLVED/index.js" ]] || { err "解析位缺失：$RESOLVED/index.js（pnpm 未物化 file: 依赖）"; exit 1; }
-ok "解析位存在：$RESOLVED/index.js"
 
-if ! ( cd "$PROFILE_DIR" && node --input-type=module -e "import('./node_modules/$PLUGIN_NAME/index.js').then(m=>{const k=Object.keys(m);if(!k.includes('apply')){console.error('missing apply export');process.exit(2)}console.log('IMPORT-OK '+k.join(','))}).catch(e=>{console.error('IMPORT-FAIL '+e.message);process.exit(3)})" ); then
-  err "插件 ESM 导入失败 —— **不注册 bundle**（否则 DSH 会起不来）"
+# 把插件 package.json 的 files 白名单里每个文件/目录，与插件源目录逐文件比对 sha256。
+# 缺任何一个（尤其 preheat.js）→ 直接从源目录 cp -a 补齐，然后再校验一次。
+node - "$DEST_DIR" "$RESOLVED" <<'NODE' || exit 1
+const fs = require("fs"), path = require("path"), crypto = require("crypto");
+const [srcDir, dstDir] = process.argv.slice(2);
+const pkg = JSON.parse(fs.readFileSync(path.join(srcDir, "package.json"), "utf8"));
+const entries = pkg.files || ["index.js"];
+const sha = (p) => crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex");
+let missing = [], changed = [], okN = 0;
+const walk = (rel) => {
+  const s = path.join(srcDir, rel), d = path.join(dstDir, rel);
+  const st = fs.statSync(s);
+  if (st.isDirectory()) { for (const e of fs.readdirSync(s)) walk(path.join(rel, e)); return; }
+  if (!fs.existsSync(d)) { missing.push(rel); return; }
+  try { if (sha(s) !== sha(d)) changed.push(rel); else okN++; }
+  catch (e) { missing.push(rel); }
+};
+for (const e of entries) { if (fs.existsSync(path.join(srcDir, e))) walk(e); }
+console.log("    files 白名单：" + entries.length + " 项；逐文件比对 OK=" + okN +
+            " 缺失=" + missing.length + " 内容不同=" + changed.length);
+if (missing.length) console.log("    缺失：" + missing.join(", "));
+if (changed.length) console.log("    不同：" + changed.join(", "));
+// 补齐：源目录里有的、目标里缺的/不同的，全部 cp 覆盖
+let fixed = 0;
+const copyAll = (rel) => {
+  const s = path.join(srcDir, rel), d = path.join(dstDir, rel);
+  const st = fs.statSync(s);
+  if (st.isDirectory()) {
+    fs.mkdirSync(d, { recursive: true });
+    for (const e of fs.readdirSync(s)) copyAll(path.join(rel, e));
+    return;
+  }
+  fs.mkdirSync(path.dirname(d), { recursive: true });
+  fs.copyFileSync(s, d);
+  fixed++;
+};
+for (const rel of missing.concat(changed)) {
+  try { copyAll(rel); } catch (e) { console.error("    [X] 补齐失败 " + rel + "：" + e.message); process.exit(1); }
+}
+if (fixed) console.log("    [FIX] 已从插件源目录补齐 " + fixed + " 个文件（pnpm 快照陈旧）");
+// 复查
+let bad = 0;
+for (const rel of missing.concat(changed)) {
+  if (!fs.existsSync(path.join(dstDir, rel))) { bad++; continue; }
+  try { if (sha(path.join(srcDir, rel)) !== sha(path.join(dstDir, rel))) bad++; } catch (e) { bad++; }
+}
+if (bad) { console.error("    [X] 补齐后仍有 " + bad + " 个文件不一致"); process.exit(1); }
+console.log("    [OK] 物化结果与源目录逐文件一致");
+NODE
+ok "物化结果与插件源目录逐文件一致（含 preheat.js）"
+
+# ESM 导入：用**裸包名**（宿主 cordis loader 就是这么导入的），不是相对路径 ——
+# 相对路径曾让"缺文件"的陈旧快照也能导入成功，从而漏掉真实故障。
+if ! ( cd "$PROFILE_DIR" && node --input-type=module -e "import('$PLUGIN_NAME').then(m=>{const k=Object.keys(m);if(!k.includes('apply')){console.error('missing apply export');process.exit(2)}console.log('IMPORT-OK '+k.join(','))}).catch(e=>{console.error('IMPORT-FAIL '+e.message);process.exit(3)})" ); then
+  err "插件 ESM 导入失败（裸包名）—— **不注册 bundle**（否则 DSH 会起不来）"
   exit 1
 fi
 ok "ESM 导入成功（apply/inject/name 齐备）"
