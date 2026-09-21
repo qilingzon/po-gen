@@ -78,6 +78,23 @@ curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/master/po-gen.sh |
 > `po-gen.sh` 会自动把仓库缓存在 `~/.po-gen-src`（可 `PO_GEN_CACHE` 覆盖），
 > 所以 curl 形式只需跑一次，之后每次都会更新缓存再执行。
 
+### `doctor` 是什么
+
+命名借用 `brew doctor` / `flutter doctor` 的习惯：**只体检、不改盘的自诊断命令**。
+它跑 **5 项装前检查**，**不修改任何文件**；任何一项不通过，直接打印**可复制的修复命令**：
+
+| # | 检查 | 不通过时的处置 |
+| --- | --- | --- |
+| 1/5 | DSH 目录存在（`$DSH_HOME` 或 `~/.dsh`） | 打印 `ls -d ~/.dsh /opt/dsh …` 与 `find / -maxdepth 4 -type d -name .dsh`，让你显式 `export DSH_HOME=` |
+| 2/5 | profile 目录存在（含 `package.json`） | 提示"先启动一次 DSH 生成 profile"，或 `export DSH_PROFILE=web` |
+| 3/5 | `node` 可用 | 给 `apt-get install -y nodejs npm` |
+| 4/5 | `pnpm` 可用 | 给 `npm install -g pnpm` |
+| 5/5 | **包完整性**：`files` 白名单覆盖全部相对导入 | **明确「不要强行安装」** + 重新取包命令（这就是 2026-09-21 把 DSH 装崩的那一类） |
+
+**与 `--check` 的区别**：`install.sh --check` 遇到第一个问题就退出（你只看到一条错）；
+**`doctor` 一次列全 5 项，每项都带修复命令**，所以排查时先跑 `doctor`。
+全过时最后一行是 `DOCTOR-OK  5/5 通过，可以安装`；有不过则是 `DOCTOR-FAIL  N 项未通过`（退出码 = 未通过项数）。
+
 **安全保证（都是踩过坑换来的）**：
 - **安装**：先装依赖、**校验插件可解析（含真 ESM import）**，**最后才注册 bundle**；任何失败**自动回滚** `package.json` ⇒ 不会把 DSH 装到起不来。
 - **卸载**：**先注销 bundle/依赖**，再删文件 ⇒ 卸载后 DSH 一定还能启动。
