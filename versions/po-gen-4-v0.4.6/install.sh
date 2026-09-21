@@ -108,6 +108,48 @@ command -v pnpm >/dev/null 2>&1 || {
 }
 ok "pnpm 可用：$(command -v pnpm)  $(pnpm -v)"
 
+# ---------- [1.5] 包完整性闸门（防 B14 家族复发） ----------
+# 为什么必须有：v0.4.5/v0.4.6 给 index.js 加了 import "./preheat.js"，却没把 preheat.js 写进
+# package.json 的 files 白名单；pnpm 对 file: 依赖**按白名单物化** ⇒ 副本里缺文件 ⇒
+# ERR_MODULE_NOT_FOUND ⇒ cordis 加载器 failed to import loader entry ⇒ **dsh 主进程直接退出**。
+# 这条闸门在**复制/安装之前**就把它拦下来，避免把宿主装崩。
+step "校验包完整性（files 白名单必须覆盖全部相对导入）"
+node - "$SRC_DIR" <<'NODE'
+const fs = require("fs"), path = require("path");
+const dir = process.argv[2];
+const pkg = JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8"));
+const files = Array.isArray(pkg.files) ? pkg.files : null;
+if (!files) { console.error("包不完整：package.json 缺 files 白名单"); process.exit(1); }
+const cov = (rel) => files.some((f) => {
+  const e = String(f).replace(/\\/g, "/").replace(/\/$/, "");
+  const n = rel.replace(/^\.\//, "");
+  return n === e || n.startsWith(e + "/");
+});
+let bad = 0;
+for (const f of ["index.js", "client.js"]) {
+  const p = path.join(dir, f);
+  if (!fs.existsSync(p)) continue;
+  const code = fs.readFileSync(p, "utf8");
+  const re = /from\s+["'](\.\/[^"']+)["']|import\s*\(\s*["'](\.\/[^"']+)["']\s*\)/g;
+  let m;
+  while ((m = re.exec(code)) !== null) {
+    const spec = m[1] || m[2];
+    const okDisk = fs.existsSync(path.resolve(dir, spec));
+    const okList = cov(spec);
+    if (!okDisk || !okList) {
+      console.error("包不完整：" + f + " 导入 " + spec + "（在盘上=" + okDisk + " 白名单=" + okList + "）");
+      bad++;
+    }
+  }
+}
+if (bad) {
+  console.error("⇒ 继续安装会在 pnpm 物化后缺文件，DSH 启动即崩（B14 家族）。已中止，未改动任何文件。");
+  process.exit(1);
+}
+console.log("包完整性 OK");
+NODE
+ok "包完整性校验通过（files 白名单覆盖全部相对导入）"
+
 if [[ $CHECK_ONLY -eq 1 ]]; then
   step "体检模式（--check）：不修改任何文件"
   ok "环境与 profile 探测通过，可以安装"
