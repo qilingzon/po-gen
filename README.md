@@ -16,6 +16,11 @@ po-gen（原「无限代」破甲项目）——面向 DeepSeek Harness 的提�
 | po-gen-4 | `versions/po-gen-4-v0.4.3/` | 92 | 交付修复：徽标 busy 改读 `turnBoundary` 投影（修 armor 假忙） |
 | po-gen-4 | `versions/po-gen-4-v0.4.4/` | 92 | 交付修复：挂 inbox 投影待发计数＝静默丢件可见化 |
 | **po-gen-4** | **`versions/po-gen-4-v0.4.6/`（当前默认）** | 92 | **首句门控冷启动预热**：续做类请求（「继续破甲项目」）38.5%→100%；普通任务题不注入（消除 v0.4.5 无门控版 66.7%→54.2% 的负优化）；三处版本串统一 |
+| po-gen-4 | `versions/po-gen-4-v0.4.7/`（候选） | 92 | **注入可视性**：`GEN4_DUMP_PROMPT=<path>` 把 armor / preheat / align / reanchor 四片段带 len+sha256 落盘（+ `<path>.manifest`），空载荷显式记 `INJECT-INCOMPLETE`；附外部校验器 `check_dump.js`。**行为增量仅观测**；口径对齐层（A′）随包提供但 `GEN4_ALIGN` **默认关**，待 A/B 定论 |
+
+> v0.4.7 的用途：当出现「徽标在场、注入动作发生，但模型仍拒」时，用它回答**甲的正文到底进没进 payload**。
+> 开启方式：宿主环境里加 `GEN4_DUMP_PROMPT=/root/gen4-inject.log`，重启宿主，复现问题，然后
+> `node check_dump.js /root/gen4-inject.log --armor-file <插件目录>/prompts/variants/b37-coldstart.md`。
 
 `versions/po-gen-4-v0.4.2/prompts/variants/` 内含实验变体（zero-trigger、boundary-unify、turn-anchor、stealth-cut、复合）——zero-trigger 已被实测反证（撤掉负向装甲后 battery 8/14），保留作研究数据。
 
