@@ -7,10 +7,12 @@
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
+    "./preheat": "./preheat.js",
     "./package.json": "./package.json"
   },
   "files": [
     "index.js",
+    "preheat.js",
     "client.js",
     "cordis.patch.yml",
     "install.sh",
@@ -27,7 +29,7 @@
   "dsh": {
     "id": "dsh-infinite-gen-4",
     "name": "无限四代",
-    "version": "0.4.2",
+    "version": "0.4.6",
     "repo": "local/gen4-lab",
     "permissions": "系统提示词注入, 客户端状态条, 会话投影, 再注入顾问",
     "client": {
