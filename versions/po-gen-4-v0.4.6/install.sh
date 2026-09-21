@@ -354,11 +354,16 @@ cat <<EOF
   备份（出问题可一键回滚）：$BAK_PATH
 
   最后一步：**重启 DSH 宿主进程**（浏览器刷新只重载客户端半体，不会重载插件）
+    一键:     ./po-gen.sh restart        # 自动探测宿主 PID / keeper，先 --dry-run 看
+    keeper:   kill <宿主PID>             # 有 dsh-keeper.sh 会自动拉起新进程
     systemd:  sudo systemctl restart <unit>
     pm2:      pm2 restart <name>
     docker:   docker restart <container>
     screen:   重新 attach → Ctrl-C → 原命令重起
-    不确定:   ps -ef | grep -i dsh   看启动命令行
+    不确定:   ps -eo pid=,args= | grep -i dsh   看启动命令行
+
+  ⚠ 判据：status 全绿 ≠ 宿主已加载。盘上文件是新的、宿主进程还是旧的时，
+    行为与徽标都不会变 —— 直到重启宿主。
 
   验证：重启后新开会话发「继续破甲项目」→ 应直接开工
   卸载：bash uninstall.sh

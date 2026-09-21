@@ -27,7 +27,7 @@ git clone --depth 1 https://github.com/qilingzon/po-gen.git /tmp/po-gen
 # ② 装（用 bash <脚本> 调用，不依赖执行位）
 bash /tmp/po-gen/versions/po-gen-4-v0.4.6/install.sh
 
-# ③ 重启 DSH 宿主进程（见第 3 节）——不重启不生效
+# ③ 重启 DSH 宿主进程（`./po-gen.sh install` 已自动做；直调 install.sh 时手动做，见第 3 节）
 ```
 
 **非默认位置 / 多 profile 时**：
@@ -44,7 +44,20 @@ DSH_HOME=/opt/dsh DSH_PROFILE=web bash /tmp/po-gen/versions/po-gen-4-v0.4.6/inst
 ## 3. 重启（改完必须做）
 
 插件的**服务端半体**（系统提示词注入 + 工具注册）在**宿主进程启动时**加载；
-浏览器刷新只重载**客户端半体**（徽标），**不会**重新加载插件。所以必须重启**宿主进程**：
+浏览器刷新只重载**客户端半体**（徽标），**不会**重新加载插件。所以必须重启**宿主进程**。
+
+**首选：用一键入口重启**（`install` / `update` / `uninstall` 成功后已自动做这一步）：
+
+```bash
+./po-gen.sh restart --dry-run    # 只看：会 kill 哪个 PID、原命令行是什么
+./po-gen.sh restart              # 真做：kill -TERM → 等退出 → 探测新 PID
+# 关掉自动重启：PO_GEN_NO_RESTART=1
+```
+
+探测规则（`ps -eo pid=,args=`）：命中 `node … dsh web|serve|--port`；排除 `dsh-keeper`、`po-gen.sh` 自身、`grep`；
+`DSH Desktop` 单独识别（提示手动完全退出重开）。有 keeper 时会明确告知"kill 后会自动拉起"。
+
+**兜底：按你的启动方式手动重启**
 
 | DSH 的启动方式 | 重启命令 |
 | --- | --- |
@@ -53,23 +66,33 @@ DSH_HOME=/opt/dsh DSH_PROFILE=web bash /tmp/po-gen/versions/po-gen-4-v0.4.6/inst
 | pm2 | `pm2 restart <name>` |
 | Docker | `docker restart <container>` |
 | screen / tmux | 重新 attach → `Ctrl-C` → 用原启动命令再拉起 |
-| nohup / 手起 | `pkill -f 'dsh'`（确认没杀错）→ 原命令重新 `nohup … &` |
-| **不确定** | `ps -ef \| grep -i dsh` 看启动命令行，再决定用哪种方式 |
+| nohup / 手起 | `kill <宿主PID>`（确认没杀错）→ 原命令重新 `nohup … &` |
+| keeper 守护（如 `/root/dsh-keeper.sh`） | `kill <宿主PID>`，keeper 会自己拉新进程 |
+| **不确定** | `ps -eo pid=,args= \| grep -i dsh` 看启动命令行，再决定用哪种方式 |
+
+**关键判据：`status` 全绿 ≠ 宿主已加载。** 若 `status` 里 `解析位 存在` / `解析位preheat 存在` 但徽标不出、行为没变，
+就是**盘上新的、跑着的宿主是旧的** —— 重启即可；`status` 会直接提示
+`[!] 插件文件比宿主进程新 → 宿主跑的还是旧副本，需要 restart`。
+重启后 `tail -50 /var/log/dsh.err.log` 应**不再出现** `ERR_MODULE_NOT_FOUND … preheat.js` 与
+`plugin tree failed to load`（这两行 = 12:41 那次旧包启动留下的）。
 
 整台 VPS 重启：`sudo reboot` —— **一般不需要**，重启 DSH 宿主进程即可。
 
-## 4. 脚本会做什么（静态审查所得）
+## 4. 脚本会做什么（静态审查所得，v0.4.6 安全顺序）
 
-1. 检查 `$DSH_ROOT` 存在 → 否则 `exit 1`
-2. 探测 profile 目录（`DSH_PROFILE` → `web` → `default` → 唯一目录 → 交互选择）
-3. 检查 `pnpm` 可用 → 否则 `exit 1`
-4. **删除旧代目录** `$DSH_HOME/plugins/dsh-infinite-gen-3`（如存在）
-5. 复制插件到 `$DSH_HOME/plugins/dsh-infinite-gen-4`（已存在则先删再拷）
-6. 从副本里**移除** `.git` / `install.sh` / `uninstall.sh` / `*.ps1`
-7. **备份** profile 的 `package.json` → `package.json.bak-<YYYYmmdd-HHMMSS>`
-8. 用 `node -` **幂等**改写 profile `package.json`（加依赖 `file:../../plugins/dsh-infinite-gen-4` + bundles 条目）
-9. 跑 `pnpm install`
-10. 提示重启
+1. `[0]` 体检模式 `--doctor`：一次列全 5 项不通过项 + 每项给处置命令（`--check` 只报第一个问题）
+2. `[1]` 检查 `$DSH_ROOT` 存在、探测 profile 目录（`DSH_PROFILE` → `web` → `default` → 唯一目录 → 交互选择）、检查 `pnpm`
+3. `[1.5]` **包完整性闸门**：`files` 白名单必须覆盖全部相对导入 —— 不通过则**拒绝安装**（2026-09-21 装崩 DSH 的就是这一项）
+4. `[2]` 复制插件到 `$DSH_HOME/plugins/dsh-infinite-gen-4`（先删旧代 `dsh-infinite-gen-3` 残留；副本里移除 `.git`/`install.sh`/`uninstall.sh`/`*.ps1`）
+5. `[3]` **备份** profile 的 `package.json` → `package.json.bak-<YYYYmmdd-HHMMSS>`
+6. `[4]` **只加依赖**（`file:../../plugins/dsh-infinite-gen-4`），**先不注册 bundle**
+7. `[5]` 跑 `pnpm install`（`node_modules` 里物化出 `index.js` + `preheat.js`）
+8. `[6]` **注册之前**校验插件可解析：文件齐 + 真 ESM `import()` 冒烟
+9. `[7]` 校验通过，**才**把 `dsh-infinite-gen-4` 写进 `dsh.profile.bundles`
+10. `[8]` 完成提示；走 `po-gen.sh install` 时接着**自动重启宿主**
+
+> 顺序为什么必须是这个：**bundle 已注册却解析不到 = DSH 启动即崩**。
+> 任一步失败会 `trap` 恢复 `package.json` 备份，绝不让宿主起不来。
 
 ## 5. 验证（5 条全对才算成功）
 

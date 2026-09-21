@@ -48,7 +48,7 @@ powershell -ExecutionPolicy Bypass -File install.ps1 -Version 0.4.1
 powershell -ExecutionPolicy Bypass -File install.ps1 -Uninstall -Generation 4
 ```
 
-行为：自动备份旧版（`<插件>.bak-时间戳`）→ 拷贝 → 幂等注册 profile bundles+deps → 提示重启。卸载对称移除。
+行为：自动备份旧版（`<插件>.bak-时间戳`）→ 拷贝 → 幂等注册 profile bundles+deps → 自动重启宿主（`PO_GEN_NO_RESTART=1` 可关）。卸载对称移除。
 
 ## 一键安装 / 卸载 / 更新（Linux / macOS）
 
@@ -59,8 +59,10 @@ powershell -ExecutionPolicy Bypass -File install.ps1 -Uninstall -Generation 4
 curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/master/po-gen.sh | bash -s install
 # 更新（先拉最新仓库，再装最新版本）
 curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/master/po-gen.sh | bash -s update
-# 卸载
+# 卸载（卸载后同样会自动重启宿主）
 curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/master/po-gen.sh | bash -s uninstall
+# 重启宿主（自动探测宿主 PID / keeper / 桌面端；--dry-run 只看不做）
+curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/master/po-gen.sh | bash -s restart --dry-run
 # 体检（5 项全查，每项不通过都给修复命令）
 curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/master/po-gen.sh | bash -s doctor
 # 状态 / 可用版本
@@ -71,8 +73,9 @@ curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/master/po-gen.sh |
 **已克隆的话**，本地同一个入口：
 
 ```bash
-./po-gen.sh install      # 或 uninstall / update / doctor / status / list
+./po-gen.sh install      # 或 uninstall / update / restart / doctor / status / list
 ./po-gen.sh install --version v0.4.6 --home /opt/dsh --profile web
+./po-gen.sh restart --dry-run        # 先看看会 kill 谁、用什么命令再拉起
 ```
 
 > `po-gen.sh` 会自动把仓库缓存在 `~/.po-gen-src`（可 `PO_GEN_CACHE` 覆盖），
@@ -100,6 +103,8 @@ curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/master/po-gen.sh |
 - **卸载**：**先注销 bundle/依赖**，再删文件 ⇒ 卸载后 DSH 一定还能启动。
 - **幂等**：重复 install 不会重复注册；卸载后可重复部署。
 - **重启才生效**：浏览器刷新只重载客户端半体，**必须重启宿主进程**（见下节）。
+- **install / update / uninstall 成功后自动重启宿主**（探测 PID → `kill -TERM` → 等 keeper/自起回来）；
+  `PO_GEN_NO_RESTART=1` 关掉自动重启，只打印手动命令。
 
 ## 一键部署（Linux / VPS）
 
@@ -131,7 +136,25 @@ DSH_HOME=/opt/dsh DSH_PROFILE=web bash /tmp/po-gen/versions/po-gen-4-v0.4.6/inst
 ## 重启（改完必须做，否则不生效）
 
 插件的**服务端半体**（系统提示词注入 + 工具注册）在**宿主进程启动时**加载；浏览器刷新只重载客户端半体（徽标），
-**不会**重新加载插件。所以必须重启宿主进程：
+**不会**重新加载插件。所以必须重启宿主进程。
+
+**首选：让工具自己重启**（install / update / uninstall 成功后已自动执行，也可单独调用）：
+
+```bash
+./po-gen.sh restart --dry-run   # 先看它认出了谁
+./po-gen.sh restart             # 真实执行
+```
+
+它会做四件事：
+1. 从 `ps -eo pid=,args=` 里挑出**宿主进程**（`node … dsh web/serve --port …`），
+   排除 keeper（`dsh-keeper`）、排除 `po-gen.sh` 自己、排除 `grep`；
+2. 打印宿主 PID + **原启动命令行**（后面万一没自起，照抄这行就能拉回来）；
+3. 检测 keeper：有 keeper 就说明 `kill` 后会自动拉起，无需手忙；
+4. `kill -TERM` → 最多等 20 秒退出 → 再等最多 10 秒探测新 PID → 报新 PID，或打印手动启动命令。
+
+桌面端（Electron）会被识别为 `DSH Desktop`：它没法被脚本安全重启，会提示**完全退出再重开**。
+
+**兜底：按你的运行方式手动重启**
 
 | 你的 DSH 是怎么跑的 | 命令 |
 | --- | --- |
@@ -140,13 +163,27 @@ DSH_HOME=/opt/dsh DSH_PROFILE=web bash /tmp/po-gen/versions/po-gen-4-v0.4.6/inst
 | pm2 | `pm2 restart <name>` |
 | Docker | `docker restart <container>` |
 | screen / tmux | 重新 attach → `Ctrl-C` → 用原启动命令再拉起 |
-| nohup / 手起 | `pkill -f 'dsh'`（确认没杀错进程）→ 用原命令重新 `nohup … &` |
-| 不确定 | `ps -ef | grep -i dsh` 看启动命令行，再决定用哪种方式 |
+| nohup / 手起 | `kill <宿主PID>`（确认没杀错进程）→ 用原命令重新 `nohup … &` |
+| keeper 守护（如 `/root/dsh-keeper.sh`） | `kill <宿主PID>` 即可，keeper 会自己拉新进程 |
+| 不确定 | `ps -eo pid=,args= | grep -i dsh` 看启动命令行，再决定用哪种方式 |
 
 重启后验证：`ls ~/.dsh/plugins/dsh-infinite-gen-4/index.js` 在 → **新开会话发一句「继续破甲项目」**，
 预期**直接开工**（读盘 → 报现状 → 推进一项），而不是"请指明方向"或拒绝。
 
 整台 VPS 重启：`sudo reboot`（一般**不需要**，重启 DSH 宿主进程即可）。
+
+### 「装完了但没生效」怎么判
+
+这是 2026-09-21 的真实事故形态，判据很硬 —— **`status` 全绿 ≠ 宿主已加载**：
+
+| 现象 | 含义 | 处置 |
+| --- | --- | --- |
+| `status` 里 `解析位 存在` + `解析位preheat 存在`，但徽标不出、行为没变 | **盘上是新的，跑着的宿主是旧的** | `./po-gen.sh restart` |
+| `status` 打印 `[!] 插件文件比宿主进程新 → 宿主跑的还是旧副本，需要 restart` | 同上，工具已替你判出来 | `./po-gen.sh restart` |
+| 日志里 `ERR_MODULE_NOT_FOUND … preheat.js` 反复出现 | 宿主启动那一刻包还缺文件（旧版安装顺序的坑，v0.4.6 起已修） | 先 `update` 刷新 `node_modules`，再 `restart` |
+| 日志里 `plugin tree failed to load: failed to import loader entry` | 同上，插件树整体没加载 ⇒ 甲与徽标同时不在场 | 同上 |
+
+查日志：`tail -50 /var/log/dsh.err.log`（或你的宿主日志路径），确认重启后**不再出现**上面两行。
 
 ## 手动安装（任意平台）
 
