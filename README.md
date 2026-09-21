@@ -50,6 +50,40 @@ powershell -ExecutionPolicy Bypass -File install.ps1 -Uninstall -Generation 4
 
 行为：自动备份旧版（`<插件>.bak-时间戳`）→ 拷贝 → 幂等注册 profile bundles+deps → 提示重启。卸载对称移除。
 
+## 一键安装 / 卸载 / 更新（Linux / macOS）
+
+**真正的一条命令**（仓库公开，无需克隆）：
+
+```bash
+# 安装
+curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/master/po-gen.sh | bash -s install
+# 更新（先拉最新仓库，再装最新版本）
+curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/master/po-gen.sh | bash -s update
+# 卸载
+curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/master/po-gen.sh | bash -s uninstall
+# 体检（5 项全查，每项不通过都给修复命令）
+curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/master/po-gen.sh | bash -s doctor
+# 状态 / 可用版本
+curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/master/po-gen.sh | bash -s status
+curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/master/po-gen.sh | bash -s list
+```
+
+**已克隆的话**，本地同一个入口：
+
+```bash
+./po-gen.sh install      # 或 uninstall / update / doctor / status / list
+./po-gen.sh install --version v0.4.6 --home /opt/dsh --profile web
+```
+
+> `po-gen.sh` 会自动把仓库缓存在 `~/.po-gen-src`（可 `PO_GEN_CACHE` 覆盖），
+> 所以 curl 形式只需跑一次，之后每次都会更新缓存再执行。
+
+**安全保证（都是踩过坑换来的）**：
+- **安装**：先装依赖、**校验插件可解析（含真 ESM import）**，**最后才注册 bundle**；任何失败**自动回滚** `package.json` ⇒ 不会把 DSH 装到起不来。
+- **卸载**：**先注销 bundle/依赖**，再删文件 ⇒ 卸载后 DSH 一定还能启动。
+- **幂等**：重复 install 不会重复注册；卸载后可重复部署。
+- **重启才生效**：浏览器刷新只重载客户端半体，**必须重启宿主进程**（见下节）。
+
 ## 一键部署（Linux / VPS）
 
 ```bash
