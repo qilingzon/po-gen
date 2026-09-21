@@ -12,7 +12,10 @@ po-gen（原「无限代」破甲项目）——面向 DeepSeek Harness 的提�
 | po-gen-3 | `versions/po-gen-3-v0.4.4/` | 90 | fusion 骨架 + WiFi 首句协议（v0.4.4） |
 | po-gen-4 | `versions/po-gen-4-v0.4.0/` | 92 | SPEED 单遍纪律 + 供应商审核对抗 v4 |
 | po-gen-4 | `versions/po-gen-4-v0.4.1/` | 92 | T14 WiFi 首句协议 / T07 元问题形态协议 / T12 长文管线收紧 |
-| **po-gen-4** | `versions/po-gen-4-v0.4.2/`（当前默认） | 92 | + 轮首自锚（TURN-OPENER SELF-ANCHOR）；battery 人工校正 38/40、matrix 16/16 零掐流 |
+| po-gen-4 | `versions/po-gen-4-v0.4.2/` | 92 | + 轮首自锚（TURN-OPENER SELF-ANCHOR）；battery 人工校正 38/40、matrix 16/16 零掐流 |
+| po-gen-4 | `versions/po-gen-4-v0.4.3/` | 92 | 交付修复：徽标 busy 改读 `turnBoundary` 投影（修 armor 假忙） |
+| po-gen-4 | `versions/po-gen-4-v0.4.4/` | 92 | 交付修复：挂 inbox 投影待发计数＝静默丢件可见化 |
+| **po-gen-4** | **`versions/po-gen-4-v0.4.6/`（当前默认）** | 92 | **首句门控冷启动预热**：续做类请求（「继续破甲项目」）38.5%→100%；普通任务题不注入（消除 v0.4.5 无门控版 66.7%→54.2% 的负优化）；三处版本串统一 |
 
 `versions/po-gen-4-v0.4.2/prompts/variants/` 内含实验变体（zero-trigger、boundary-unify、turn-anchor、stealth-cut、复合）——zero-trigger 已被实测反证（撤掉负向装甲后 battery 8/14），保留作研究数据。
 
@@ -46,6 +49,53 @@ powershell -ExecutionPolicy Bypass -File install.ps1 -Uninstall -Generation 4
 ```
 
 行为：自动备份旧版（`<插件>.bak-时间戳`）→ 拷贝 → 幂等注册 profile bundles+deps → 提示重启。卸载对称移除。
+
+## 一键部署（Linux / VPS）
+
+```bash
+# 0) 前提：DSH 已装且启动过（存在 ~/.dsh/profiles/<name>/package.json）、node 与 pnpm 可用
+#    本仓库是私有库：先 gh auth login，或用带 token 的 URL
+git clone --depth 1 https://github.com/qilingzon/po-gen.git /tmp/po-gen
+
+# 1) 装（用 bash <脚本> 调用，不依赖执行位）
+bash /tmp/po-gen/versions/po-gen-4-v0.4.6/install.sh
+
+# 2) 重启 DSH 宿主进程（见下节）——不重启不生效
+```
+
+非默认 home / 多 profile 时显式指定（**无人值守场景必须给 `DSH_PROFILE`**，否则脚本会交互式问序号而卡住）：
+
+```bash
+DSH_HOME=/opt/dsh                 bash /tmp/po-gen/versions/po-gen-4-v0.4.6/install.sh
+DSH_PROFILE=web                   bash /tmp/po-gen/versions/po-gen-4-v0.4.6/install.sh
+DSH_HOME=/opt/dsh DSH_PROFILE=web bash /tmp/po-gen/versions/po-gen-4-v0.4.6/install.sh
+```
+
+脚本行为：检查 `$DSH_ROOT`/profile/`pnpm`（缺任一即 `exit 1`）→ 清理旧代 `dsh-infinite-gen-3` 残留 →
+复制插件到 `$DSH_HOME/plugins/dsh-infinite-gen-4`（已存在先删再拷）→ 从副本移除 `.git`/`install.sh`/`*.ps1` →
+**备份** profile 的 `package.json` → 用 `node -` **幂等**改写依赖与 bundles → `pnpm install` → 提示重启。
+
+完整指南（前提表 / 逐步行为 / 5 条验证命令 / 回滚 / 已知未验证风险）见 **[`DEPLOY_LINUX.md`](DEPLOY_LINUX.md)**。
+
+## 重启（改完必须做，否则不生效）
+
+插件的**服务端半体**（系统提示词注入 + 工具注册）在**宿主进程启动时**加载；浏览器刷新只重载客户端半体（徽标），
+**不会**重新加载插件。所以必须重启宿主进程：
+
+| 你的 DSH 是怎么跑的 | 命令 |
+| --- | --- |
+| systemd（系统级） | `sudo systemctl restart <unit>`（unit 名先 `systemctl list-units | grep -i dsh`） |
+| systemd（用户级） | `systemctl --user restart <unit>` |
+| pm2 | `pm2 restart <name>` |
+| Docker | `docker restart <container>` |
+| screen / tmux | 重新 attach → `Ctrl-C` → 用原启动命令再拉起 |
+| nohup / 手起 | `pkill -f 'dsh'`（确认没杀错进程）→ 用原命令重新 `nohup … &` |
+| 不确定 | `ps -ef | grep -i dsh` 看启动命令行，再决定用哪种方式 |
+
+重启后验证：`ls ~/.dsh/plugins/dsh-infinite-gen-4/index.js` 在 → **新开会话发一句「继续破甲项目」**，
+预期**直接开工**（读盘 → 报现状 → 推进一项），而不是"请指明方向"或拒绝。
+
+整台 VPS 重启：`sudo reboot`（一般**不需要**，重启 DSH 宿主进程即可）。
 
 ## 手动安装（任意平台）
 
