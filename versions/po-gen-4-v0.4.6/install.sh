@@ -88,6 +88,113 @@ find_profile_dir() {
   return 1
 }
 
+# ---------- [0] 体检模式 --doctor：一次列全所有不通过项 + 每项给处置命令 ----------
+# 为什么单独做：`--check` 遇到第一个问题就退出，用户只看到一条错、不知道还有没有别的。
+# doctor 把 5 项全查一遍，**每项不通过都直接给出可复制的修复命令**，不修改任何文件。
+if [[ "${1:-}" == "--doctor" ]]; then
+  echo "=== dsh-infinite-gen-4 安装体检 (doctor) ==="
+  echo "DSH_HOME = $DSH_ROOT"
+  echo ""
+  dfails=0
+
+  # 1) DSH 根目录
+  if [[ -d "$DSH_ROOT" ]]; then
+    ok "[1/5] DSH 目录存在：$DSH_ROOT"
+  else
+    err "[1/5] 未找到 DSH 目录：$DSH_ROOT"
+    echo "      处置：找到真实 home 后显式指定 ——"
+    echo "        ls -d ~/.dsh /opt/dsh /srv/dsh 2>/dev/null        # 常见位置"
+    echo "        find / -maxdepth 4 -type d -name .dsh 2>/dev/null  # 全盘找"
+    echo "        export DSH_HOME=/实际路径"
+    dfails=$((dfails+1))
+  fi
+
+  # 2) profile
+  if [[ -d "$DSH_ROOT" ]]; then
+    if PD="$(find_profile_dir "$DSH_ROOT/profiles" 2>/dev/null)"; then
+      ok "[2/5] profile 目录：$PD"
+    else
+      err "[2/5] 未找到含 package.json 的 profile 目录（$DSH_ROOT/profiles）"
+      echo "      原因：DSH 从未成功启动过，profile 还没生成"
+      echo "      处置：先手动启动一次 DSH 让它生成 profile，再回来装；"
+      echo "            或显式指定： export DSH_PROFILE=web   （或 default）"
+      dfails=$((dfails+1))
+    fi
+  else
+    warn "[2/5] 跳过（DSH 目录不存在）"
+  fi
+
+  # 3) node
+  if command -v node >/dev/null 2>&1; then
+    ok "[3/5] node 可用：$(node -v)"
+  else
+    err "[3/5] 未检测到 node"
+    echo "      处置：Debian/Ubuntu: apt-get install -y nodejs npm   （或 nvm / NodeSource）"
+    dfails=$((dfails+1))
+  fi
+
+  # 4) pnpm
+  if command -v pnpm >/dev/null 2>&1; then
+    ok "[4/5] pnpm 可用：$(pnpm -v)"
+  else
+    err "[4/5] 未检测到 pnpm"
+    echo "      处置： npm install -g pnpm      # 需先有 node/npm"
+    dfails=$((dfails+1))
+  fi
+
+  # 5) 包完整性（本次事故的根因闸门）
+  if command -v node >/dev/null 2>&1; then
+    if node - "$SRC_DIR" <<'NODE'
+const fs = require("fs"), path = require("path");
+const dir = process.argv[2];
+const pkg = JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8"));
+const files = Array.isArray(pkg.files) ? pkg.files : null;
+if (!files) { console.error("package.json 缺 files 白名单"); process.exit(1); }
+const cov = (rel) => files.some((f) => {
+  const e = String(f).replace(/\\/g, "/").replace(/\/$/, "");
+  const n = rel.replace(/^\.\//, "");
+  return n === e || n.startsWith(e + "/");
+});
+let bad = 0;
+for (const f of ["index.js", "client.js"]) {
+  const p = path.join(dir, f);
+  if (!fs.existsSync(p)) continue;
+  const code = fs.readFileSync(p, "utf8");
+  const re = /from\s+["'](\.\/[^"']+)["']|import\s*\(\s*["'](\.\/[^"']+)["']\s*\)/g;
+  let m;
+  while ((m = re.exec(code)) !== null) {
+    const spec = m[1] || m[2];
+    if (!fs.existsSync(path.resolve(dir, spec)) || !cov(spec)) {
+      console.error("  " + f + " 导入 " + spec + " 未通过（在盘上=" + fs.existsSync(path.resolve(dir, spec)) + " 白名单=" + cov(spec) + "）");
+      bad++;
+    }
+  }
+}
+process.exit(bad ? 1 : 0);
+NODE
+    then
+      ok "[5/5] 包完整性 OK（files 白名单覆盖全部相对导入）"
+    else
+      err "[5/5] 包不完整 —— 这就是把 DSH 装崩的那一类（B14 家族）"
+      echo "      处置：**不要强行安装**。重新取一份完整包："
+      echo "        cd /tmp/po-gen && git pull        # 或 rm -rf /tmp/po-gen && git clone --depth 1 https://github.com/qilingzon/po-gen.git /tmp/po-gen"
+      echo "      自查：确认 versions/po-gen-4-v0.4.6/preheat.js 存在，且 package.json 的 files 里含 \"preheat.js\""
+      dfails=$((dfails+1))
+    fi
+  else
+    warn "[5/5] 跳过（无 node 无法校验）"
+  fi
+
+  echo ""
+  if [[ $dfails -eq 0 ]]; then
+    echo "DOCTOR-OK  5/5 通过，可以安装：bash install.sh"
+  else
+    echo "DOCTOR-FAIL  $dfails 项未通过 —— 按上面每项的「处置」修完再重跑 --doctor"
+  fi
+  trap - EXIT
+  exit $dfails
+fi
+
 # ---------- [1] 检查环境 ----------
 step "检查环境"
 [[ -d "$DSH_ROOT" ]] || { err "未找到 DSH 目录：$DSH_ROOT（可用 DSH_HOME 指定）"; exit 1; }
