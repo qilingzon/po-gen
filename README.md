@@ -16,7 +16,7 @@ po-gen（原「无限代」破甲项目）——面向 DeepSeek Harness 的提�
 | po-gen-4 | `versions/po-gen-4-v0.4.3/` | 92 | 交付修复：徽标 busy 改读 `turnBoundary` 投影（修 armor 假忙） |
 | po-gen-4 | `versions/po-gen-4-v0.4.4/` | 92 | 交付修复：挂 inbox 投影待发计数＝静默丢件可见化 |
 | **po-gen-4** | **`versions/po-gen-4-v0.4.6/`（当前默认）** | 92 | **首句门控冷启动预热**：续做类请求（「继续破甲项目」）38.5%→100%；普通任务题不注入（消除 v0.4.5 无门控版 66.7%→54.2% 的负优化）；三处版本串统一 |
-| po-gen-4 | `versions/po-gen-4-v0.4.7/`（候选） | 92 | **注入可视性**：`GEN4_DUMP_PROMPT=<path>` 把 armor / preheat / align / reanchor 四片段带 len+sha256 落盘（+ `<path>.manifest`），空载荷显式记 `INJECT-INCOMPLETE`；附外部校验器 `check_dump.js`。**行为增量仅观测**；口径对齐层（A′）随包提供但 `GEN4_ALIGN` **默认关**，待 A/B 定论 |
+| po-gen-4 | `versions/po-gen-4-v0.4.7/`（已发，未装桌面端） | 92 | **注入可视性 + A′ 口径对齐层**：`GEN4_DUMP_PROMPT=<path>` 把 armor / preheat / align / reanchor 四片段带 len+sha256 落盘（+ `<path>.manifest`），空载荷显式记 `INJECT-INCOMPLETE`；附外部校验器 `tools/check_dump.js`。**A′ 口径对齐层默认开**（`GEN4_ALIGN=1`）：**不含任何授权/权限字样**，按类分型 —— 成人虚构类走写作口径、第三方资产类走流程文档口径；r4 实测校园网 50%→10%、边界类 70%→30%。新增 `GEN4_ARMOR=0` 干净对照开关。 |
 
 > v0.4.7 的用途：当出现「徽标在场、注入动作发生，但模型仍拒」时，用它回答**甲的正文到底进没进 payload**。
 > 开启方式：宿主环境里加 `GEN4_DUMP_PROMPT=/root/gen4-inject.log`，重启宿主，复现问题，然后
