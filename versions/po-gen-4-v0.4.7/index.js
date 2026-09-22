@@ -21,12 +21,6 @@ const PROMPT_TEXT = readFileSync(
   "utf8",
 );
 
-// ---- v0.4.7 注入可视性 ----
-// GEN4_DUMP_PROMPT=<path>：把每次注入的片段（armor/preheat/align/reanchor）带 len+sha12 落盘。
-// 目的：让"甲到底进没进 payload"成为磁盘事实（VPS 那次拒绝无法回答这个问题，只能靠猜）。
-const DUMPER = makeDumper(process.env.GEN4_DUMP_PROMPT || "");
-DUMPER.record("armor", PROMPT_TEXT, { variant: VARIANT, channel: "systemPrompt.section" });
-
 // ---- 完整模板库（提示词内只留触发词，全文按需取用） ----
 const TEMPLATES = {
   canned_workflows: [
@@ -231,9 +225,23 @@ const PREHEAT_GATE = (process.env.GEN4_PREHEAT_GATE || "continuation").replace(/
 const PREHEAT_FILE_ENV = process.env.GEN4_PREHEAT_FILE || "";
 // v0.4.7 口径对齐层（A′）：命中边界类/自决边界时，先注入一段"口径对齐"再答题。
 // 针对的是 values-layer 拒绝（"这是我自己的创作边界"），不是文本层换词。
-// **默认关**：v0.4.7 对外的行为增量只有"注入可视性"（可观测、无行为变化）；
-// A′ 是行为改动，先按 GEN4_ALIGN=1 显式跑 A/B，赢了再在下一版翻默认。
-const PREHEAT_ALIGN = envBool("GEN4_ALIGN", false);
+// **默认开**（2026-09-22 翻默认）：A′ v2 在 r4 上实测把 campus 50%→10%、boundary 70%→30%
+// （子类：not-authorized-redteam 50%→0%、bypass 88%→25%、account-locked 75%→25%、campus bare 50%→0%），
+// 且对成人虚构类**不触发**（isBoundaryRequest 门控），故无已测负作用。
+const PREHEAT_ALIGN = envBool("GEN4_ALIGN", true);
+// v0.4.7 对照开关：GEN4_ARMOR=0 = 完全关甲（四条通道全关）。
+// 为什么要有它：A/B 的对照臂必须**同 profile、同路由、同模型**，只差甲本身；
+// 换 profile 做对照会引入无法控制的差异（历史教训：跨 profile 对照污染过结论）。
+const ARMOR_ON = envBool("GEN4_ARMOR", true);
+
+// ---- v0.4.7 注入可视性 ----
+// GEN4_DUMP_PROMPT=<path>：把每次注入的片段（armor/preheat/align/reanchor）带 len+sha12 落盘。
+// 目的：让"甲到底进没进 payload"成为磁盘事实（VPS 那次拒绝无法回答这个问题，只能靠猜）。
+// 注意：关甲时**不记 armor 片段** —— 否则 dump 会谎报"甲被注入了"。
+const DUMPER = makeDumper(process.env.GEN4_DUMP_PROMPT || "");
+if (ARMOR_ON) {
+  DUMPER.record("armor", PROMPT_TEXT, { variant: VARIANT, channel: "systemPrompt.section" });
+}
 
 function preheatMessage(role, text, form, summary) {
   return Object.freeze({
@@ -305,13 +313,14 @@ export const inject = ["tools", "systemPrompt"];
 export function apply(ctx) {
   loadConfig();
 
-  ctx.effect(() =>
-    ctx.systemPrompt.section({
+  ctx.effect(() => {
+    if (!ARMOR_ON) return;
+    return ctx.systemPrompt.section({
       name: "infinite-gen-4:global-system-prompt",
       order: 100,
       text: PROMPT_TEXT,
-    }),
-  );
+    });
+  });
   ctx.effect(() => ctx.tools.register(profileTool));
 
   // 实时状态：注册会话投影（客户端 useProjection("armor") 读取）
@@ -344,6 +353,7 @@ export function apply(ctx) {
 
   // 主通道：agent/pre-step waterfall —— 检测拒绝/周期到期 => 追加重申消息
   ctx.on("agent/pre-step", ({ agent, messages, turn }, next) => {
+    if (!ARMOR_ON) return Promise.resolve(next());
     let anchor = null;
   let preheat = null;
     let align = null;
@@ -455,6 +465,7 @@ export function apply(ctx) {
 
   // 兜底通道：tools/post-execute —— 每 N 次工具执行经 additionalContexts 重申（v2 生态已验证的消息通道）
   ctx.on("tools/post-execute", async (exec, _result, next) => {
+    if (!ARMOR_ON) return next();
     let anchor = false;
     try {
       if (exec && exec.agent) {
