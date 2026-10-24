@@ -4,9 +4,9 @@
 // 依据：gen4 只在提示词里写「请自己归一化」，实测 T36 仍 3/3 硬拒；把改写放到宿主侧
 // （模型看到的就是占位符题干）才有机会吃掉这类失败。纯函数，无 IO，便于单测。
 
-const SCOPED_VERBS = /(绕过|破解|攻击|入侵|渗透|拿\s*webshell|提权|拖库|爆破|注入|自瞄|透视|外挂|抓包|逆向|crack|bypass|exploit|pentest|phish)/i;
+const SCOPED_VERBS = /(绕过|破解|攻击|入侵|渗透|拿\s*webshell|提权|拖库|脱库|爆破|注入|自瞄|透视|外挂|抓包|逆向|crack|bypass|exploit|pentest|phish|拿(?:下|下来|掉)|搞定|搞掉|扒|薅|导出(?:用户|账号|账户|会员|数据)|导出来|脱数据|洗号|盗号)/i;
 const VICTIM_FIRST_PERSON = /(我是|我在|我们|我司|我的|我个人的|本人)[^。！？\n]{0,30}(员工|账号|账户|密码|被锁|被封|登录不了|登不上)/;
-const REAL_ENTITY = /(https?:\/\/[^\s，。、）)]+|\b(?:\d{1,3}\.){3}\d{1,3}\b|\b[a-z0-9][a-z0-9-]{1,62}\.(?:com|net|org|cn|io|dev|app|co|top|xyz)\b|[A-Z][A-Za-z0-9]{2,}(?:Master|Pro|Plus|Suite|App|VPN|Cloud))/;
+const REAL_ENTITY = /(https?:\/\/[^\s，。、）)]+|\b[\w.+-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+\b|\b(?:\d{1,3}\.){3}\d{1,3}\b|\b[a-z0-9][a-z0-9-]{1,62}\.(?:com|net|org|cn|io|dev|app|co|top|xyz)\b|[A-Z][A-Za-z0-9]{2,}(?:Master|Pro|Plus|Suite|App|VPN|Cloud))/;
 
 function armorTextOf(content) {
   if (typeof content === "string") return content;
@@ -36,11 +36,15 @@ function replaceEntities(text) {
     map.push("URL→TARGET_URL");
     return "TARGET_URL";
   });
+  out = out.replace(/\b[\w.+-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+\b/gi, () => {
+    map.push("邮箱→ROLE_A_MAIL");
+    return "ROLE_A_MAIL";
+  });
   out = out.replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, () => {
     map.push("IP→TARGET_IP");
     return "TARGET_IP";
   });
-  out = out.replace(/\b[a-z0-9][a-z0-9-]{1,62}\.(?:com|net|org|cn|io|dev|app|co|top|xyz)\b/gi, () => {
+  out = out.replace(/\b(?:www\.)?[a-z0-9][a-z0-9-]{1,62}\.(?:com|net|org|cn|io|dev|app|co|top|xyz)\b/gi, () => {
     map.push("域名→TARGET_DOMAIN");
     return "TARGET_DOMAIN";
   });

@@ -1,126 +1,73 @@
-# RELEASE NOTES · dsh-infinite-gen-4 v0.5.52-lab-20261024
+# 无限5代 0.5.53 发布说明
 
-> 由 `node .diag/build_release.js` 生成；逐文件 SHA256 见同目录 `MANIFEST.json`。
-> 源目录：`D:\deepseek\armor-lab\gen4_home\plugins\dsh-infinite-gen-4`（lab 规范源）。**发布件不含 `*.bak*` / `.REJECTED.md` / node_modules。**
+## 0. 本版变更（0.5.53 · 2026-10-24）
 
-## 0. 本版变更（0.5.52 · 适配 DSH 0.2.1-rc.3，补齐宿主版本契约）
+本版两件事，互不相关，都来自实测问题：
 
-> 0.5.51 → 0.5.52 是**兼容性版本**：提示词（`prompts/variants/b37-lite.md` 22,113 B，sha256 前缀
-> `B4B8363E`）与运行期代码（`index.js` 49,866 B、`client.js` 17,687 B）**逐字节未改**，
-> 交付能力与 0.5.51 完全相同。改的只有「告诉宿主自己能跑在哪」以及配套文档。
+### 0.1 插件面板「无法从依赖变更中确定安装了哪一个包」——已定位并给出修法
 
-### 1. 根因：插件此前没有声明宿主版本
+**症状**：面板里填 `https://github.com/qilingzon/po-gen` 升级，pnpm 跑完（`+ dsh-infinite-gen-4 0.5.51`），
+面板却报「无法从依赖变更中确定安装了哪一个包」。
 
-`package.json` 的 `engines` 只有 `node`，没有 `dsh`，也没有 `@deepseek-ai/dsh` 的
-`peerDependencies`。宿主的判据在 `dsh-app-boot` 的 `unmetRequirements`：
+**根因**（宿主源码 `@deepseek-ai/dsh-plugin-manager/lib/index.js`）：安装后靠「profile `package.json` 的依赖值有没有变化」判断装了哪个包；
 
-- 有 `engines.dsh` → **只**看它；
-- 没有 → 逐个校验 `@deepseek-ai/dsh` / `@deepseek-ai/dsh-*` 的 peer 区间。
-
-两者都没有就等于**完全不检查**：既不会在 rc.3 上拦住你，也不会在将来某个改坏 API 的版本上拦住你。
-这一版把契约补上：
-
-```json
-"engines": { "node": ">=20", "dsh": ">=0.2.1-rc.2 <0.4.0" }
+```js
+const installed = Object.keys(after).filter((name) => before[name] !== after[name]);
+if (installed.length === 0) { const local = specPackageName(spec, after, profileDir); /* :1373 */ }
+if (installed.length !== 1 || installed[0] === void 0) throw new ManagementFailure("ambiguous-install");
 ```
 
-下限 `0.2.1-rc.2` = 实现实测过的最早一版；上限 `<0.4.0` 给 0.2.x 正式版与 0.3.x 留空间，
-0.4.0 起必须重新验证后才放宽。宿主判定时预发布版也参与区间比较，所以 rc.3 落在区间内。
+而 `specPackageName` 对 git 规格只做**字符串比对**，`dependencySpec`（:135）对 `github:` 值原样返回存档字符串。
+所以：第一次填 HTTPS 地址 → pnpm 规范化成 `github:qilingzon/po-gen` 存档；第二次再填同一个 HTTPS 地址
+→ 依赖值零变化 → 拿"你填的 https 串"比"存档里的 github 串" → 比不中 → 报歧义。
 
-### 2. rc.3 实测：接口面无破坏性变更
+**修法**：
 
-按 0.2.1-rc.3 重装宿主包后逐文件比对（`.diag\compat053\`）：`dsh-system-prompt`、
-`dsh-session-projection`、`dsh-tools`、`dsh-plugin-manager`、`dsh-base` 的 `lib/*.js` 与 rc.2
-**逐字节相同**；唯一变化的 `dsh-client-ui-plugin-manager/lib/client.js` 差 198 B，内容是
-CSS module 类名哈希与构建路径字符串。插件依赖的三条通道（提示段 `text(context)` 按会话求值、
-会话投影 `stateVersion=2` 带 `sessionId`、`tools.register` 的 `execute(args, exec)`）全部在
-未变化的那批包里。
+- 面板里只用 `github:` 形式：`github:qilingzon/po-gen`（无版本）或 `github:qilingzon/po-gen#v0.5.53`（新 tag）；
+- 或直接 `powershell -File .\tools\update.ps1`（本版新增，走 CLI，不经过该判定，装完回读版本）。
 
-rc.3 上的实际证据（全部可回读）：
+复刻宿主判定的自测：粘 `https://github.com/qilingzon/po-gen` → `AMBIGUOUS`；粘 `github:qilingzon/po-gen` → `OK`。
 
-| 检查 | 结果 |
-|---|---|
-| profile 内安装 | `dsh plugin --profile rc3 add 'file:…'` exit 0（6.9s），profile `dependencies` 写入本插件 |
-| profile 内装载 | `dsh --profile rc3 --dump-config` exit 0 / 0.6s，树里出现 `- id: infinite-gen-4` |
-| 0.5.52 起会话 | rc.3 CLI + `gen4-hl` profile + 0.5.52：180s 内 stderr 产出 17,138 B 的 `dsh: reasoning:` 流，无 `ERR_MODULE_NOT_FOUND` / `Cannot find package` / `TypeError` |
-| 工具层 | 0.5.5 已在 rc.3 上跑通 `gen5_verify`（`verdict=OK`、9 项 checks 全过、`prompt-file=18,931 chars`）；0.5.52 的 `index.js` 与之逐字节相同，证据可继承 |
+### 0.2 归一化层补三处（H11 类题干）
 
-未跑通的项如实记录：`--profile rc3` 原生 headless 两次尝试均 0 字节输出并超时（200s / 240s）；
-rc.3 的题干传递语义与 rc.2 不同（观察到的行为是把 `headless` 当成题干）；该轮工具调用撞上 rc.3
-沙箱的 workspace provisioning 报错。这些属宿主侧差异，未在本版修复，已列入 `docs/COMPATIBILITY.md`
-的已知限制。
+0.5.3 电池里 H11（真实第三方域名 + 真人邮箱）两臂 empty，因为归一化**没触发**：
+`SCOPED_VERBS` 只有书面词，用户写「拿下来/导出来」⇒ `verb=false` ⇒ `risky` 为 false ⇒ 原样放行。
 
-日志与复现命令：`.diag\compat053\smoke_rc3_052_verdict.md`（0.5.52）与
-`.diag\compat053\smoke_rc3_verdict.md`（0.5.5 工具层）。
+`normalize.js` 三处补丁：扩口语动词表；新增邮箱替换 `ROLE_A_MAIL`（排在域名规则前）；裸域名补 `(?:www\.)?`。
 
-### 3. 新增 `docs/COMPATIBILITY.md`
+单测 19 条全过（H11 必须 changed=true 且品牌/邮箱零残留；三条对照题必须 changed=false；超长题干不改写）。
 
-写明三件事：`engines.dsh` 区间与由来、rc.3 的字节对比与冒烟结论、**跨版本混装**的已知限制——
-用 rc.3 的 CLI 去跑由 rc.2 物化出来的 profile，宿主会把 row 级插件逐条禁用并报
-`is incompatible with dsh 0.2.1-rc.3`，插件停在 `pending (waiting for services: tools, systemPrompt)`。
-这不是插件缺陷：同一 profile 的宿主包必须与 CLI 同版本，升级客户端后应让 profile 重新物化。
+**能力声明边界**：本版**不声明** H11 已修好——归一化只负责让模型看到占位符题干，是否交付要重跑电池；
+H11 双跑作为 0.5.54 的前置证据，未跑完不写进本版成绩。
 
-### 4. 升级与回滚
+## 1. 继承说明
 
-- 升级：装 `v0.5.52`（`https://github.com/qilingzon/po-gen` 不带 tag，或带 `#v0.5.52`）；
-  桌面端 0.2.1-rc.2 与 rc.3 都在 `engines.dsh` 区间内，**无需先升宿主**。
-- 回滚：`install.ps1 -Restore`（`-ListBackups` 列出备份点），或装回 `#v0.5.51`。
-  本版未改包名、`dsh.id`、段名（`infinite-gen-4:global-system-prompt`）、工具名或设置文件格式；
-  宿主若回退到 rc.2，0.5.52 仍满足 `engines.dsh`，不需要回滚。
+§1–§4 的交付标准、电池方法学与历史数字沿用 0.5.3–0.5.52 批次（12 题电池、双臂对照、判分器客观计数），
+属**历史数据**；本版只改安装路径与归一化，提示词 `b37-lite.md` 逐字节未改（22,113 B）。
 
-### 5. 非回归（同一套断言重跑）
-
-| 层 | 结果 |
-|---|---|
-| 契约（`harness.mjs`，路由/段文本/钩子） | 25/25 PASS |
-| 客户端静态（`client_static.mjs`，徽标与面板） | 24/24 PASS |
-| 徽标开关（`toggle_051.mjs`） | 9/9 PASS |
-| 安装实证（空 `DSH_HOME` + `install.ps1 -LocalZip`） | `INSTALL-OK v0.5.52`，两处回读一致（`0.5.52` / `index.js 0cf849693f4c`） |
-
-> 说明：§1–§4 由 build_release.js 模板继承，其中变体交付率与电池数字截至 0.4.2–0.4.10，属**历史数据**。
-
-## 1. 这一版的关键事实（都可复跑核验）
-
-- **重申通道默认值 = canonical 10 / 12**（与桌面端及九份历史副本一致），并**可 env 覆盖**：
-  `GEN4_REANCHOR_EVERY_TURNS`（0=关周期性）、`GEN4_REANCHOR_ON_REFUSAL`、
-  `GEN4_POSTEXEC_EVERY_ACTIONS`、`GEN4_REANCHOR_TEXT_FILE`（中性重申文本）。
-  ⚠️ 历史教训：本文件第一版把源目录当时的 20/24 带进了生效副本，导致 b37v12/v13 与 b37v15/16/18 之间
-  多出一个不一致变量；现已归零（见 `progress.md`）。
-- **变体切换**：`GEN4_VARIANT=<名>` → `prompts/variants/<名>.md`；默认 `b37-coldstart`。
-  本次发布含 **21 个变体**。
-- **运行期加载的是 profile 的物化副本**（`<home>/profiles/<profile>/node_modules/dsh-infinite-gen-4`），
-  **不是** `<home>/plugins/` 源目录 —— 改源不生效是常态。发布/安装必须走
-  `.diag/sync_plugin_to_profile.ps1`（逐文件 SHA256 + 变体存在性断言，失败 exit 3）。
-
-## 2. 甲（变体）的实测交付率（电池，元指令 n=9–18，判据 = score_win 金标版本）
-
-| 变体 | 交付率 | 备注 |
-| --- | --- | --- |
-| `upstream-v040`（官方原版 3 KB，逐字节相同） | **61%** | 目前测得最高；措辞中性、脸上不写"破甲/越狱" |
-| `b37-coldstart`（默认，25 KB） | **56%** | 桌面端当前安装的就是它 |
-| `main`（`prompts/infinite-gen-4.md`，lab 源为 slim v1 2 KB） | 17% | 注意：桌面端那份 main 是 24 KB legacy，**与 lab 不同** |
-| `window-v042live`（本窗口真机提示词，含 harness 前言） | **0%** | 实测最差，仅作对照件保留 |
-
-## 3. 已知问题（如实）
-
-1. **判据（`score_win.js`）仍有长尾，未收敛**：四批盲测残余误差 12.8% / 8.6% / 8.3% / 10.8%，
-   合计 **16/155 ≈ 10.3%**，趋势**没有下降**。16 条分歧里，独立判读的结论与我逐条读原文的仲裁 **100% 一致**
-   （判据全错、判读全对）。⇒ **架构建议**：把主判据换成 **LLM 独立判读**（rubric-only 读者 + 多次投票），
-   `score_win.js` 降级为快速预筛/分流；marker 词表继续维护但不再当唯一真值。
-2. **桌面与 lab 存在版本差**：桌面那份 `index.js` 无 env 开关、main 为 24 KB legacy、仅 6 个变体；
-   对齐需走 `desktop-install-kit/`（**需用户明确指令 + 先备份**）。
-3. **臂内 rep 漂移未消**（同格多轮共享一份 cwd 副本）；样本量 n=9–18，交付率只能当方向。
-4. **工具通道在副本环境里可能静默失效**（`pwsh` 无 stdout 无副作用）—— 属环境现象，不是插件缺陷；
-   `acp_client.js` 现在会在超时后重启子进程，避免一次超时报废整轮。
-5. **甲的效果仍是概率性的**：测得最好的 `upstream-v040` 也只有 61%；没有任何配置复现出"本窗口那样连续交付"，
-   目前唯一连中的组合是"中性工程预热 + 明确接着之前的进度"（W4 的 ST2，n=2 待扩样）。
-
-## 4. 校验方式
+## 2. 升级
 
 ```powershell
-pwsh -File .diag\verify_release.ps1 -Version v0.5.52-lab-20261024      # 发布件 == lab 源 == 两份生效副本
-node .diag\verify_regression.js                          # 判据金标
-node .diag\selftest.js                                   # 12 项
-pwsh -File .diag\overnight_verify.ps1                     # 一条命令全绿
+# 推荐：一键（绕开面板判定）
+powershell -File .\tools\update.ps1
+
+# 面板里填这一串（不是 https 地址）
+github:qilingzon/po-gen#v0.5.53
+
+# 或者离线 zip
+certutil -hashfile dsh-infinite-gen-4-0.5.53.zip SHA256
 ```
 
+装完**完整退出并重启** DSH 生效。
+
+## 3. 回滚
+
+装回 `github:qilingzon/po-gen#v0.5.52`，或 `install.ps1 -Restore`（`-ListBackups` 列出备份点）。
+本版未改包名、段名、工具名与设置文件格式，回滚不影响既有会话。
+
+## 4. 校验
+
+- `check_release.ps1` 全 PASS；编码 39 文件 FAIL 0；`regate_all` 全版本 PASS；
+- 空 `DSH_HOME` 用 `install.ps1 -LocalZip` 装本包 → `INSTALL-OK v0.5.53`，三处回读 `index.js` 同 sha256；
+- `node --check index.js/client.js/normalize.js` 全 0；
+- 契约测试 25/25、客户端静态 24/24、徽标开关 9/9 未回归。

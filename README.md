@@ -3,7 +3,7 @@
 > DeepSeek Harness 插件：把「破甲模式」注册成一个**可选的 agent preset**。
 > 只有你显式选中它的会话才会注入交付引擎提示词；其他会话、其他模式**零注入**。
 
-[![version](https://img.shields.io/badge/version-0.5.52-2f6feb)](https://github.com/qilingzon/po-gen/releases)
+[![version](https://img.shields.io/badge/version-0.5.53-2f6feb)](https://github.com/qilingzon/po-gen/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-555)]
 
@@ -70,12 +70,12 @@ irm https://raw.githubusercontent.com/qilingzon/po-gen/main/install.ps1 -OutFile
 
 ```powershell
 # 指定版本 / 只预览不落盘 / 指定 profile
-& "$env:TEMP\gen4-install.ps1" -Version 0.5.52 -DryRun
+& "$env:TEMP\gen4-install.ps1" -Version 0.5.53 -DryRun
 & "$env:TEMP\gen4-install.ps1" -Profile desktop
 ```
 
 > macOS / Linux：`curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/main/install.sh -o /tmp/gen4-install.sh && bash /tmp/gen4-install.sh`
-> （参数同理直接加在后面：`bash /tmp/gen4-install.sh -v 0.5.52 -n`）
+> （参数同理直接加在后面：`bash /tmp/gen4-install.sh -v 0.5.53 -n`）
 
 ### 方式 B：走 DSH 自己的插件管理器（等价的「正规军」路线）
 
@@ -83,18 +83,39 @@ irm https://raw.githubusercontent.com/qilingzon/po-gen/main/install.ps1 -OutFile
 
 ```bash
 # 先退出桌面端，再在终端里执行
-dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.52
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.53
 dsh plugin --profile desktop why dsh-infinite-gen-4   # 确认已入依赖树
 ```
 
-它由 pnpm 管理版本、写进 `profiles/desktop/package.json`，升级时把 `#v0.5.52` 换成新 tag 即可。
+它由 pnpm 管理版本、写进 `profiles/desktop/package.json`，升级时把 `#v0.5.53` 换成新 tag 即可。
 缺点：需要能访问 GitHub、且 profile 的 peer 校验必须全绿（有一个插件不满足 peer，整次安装会被拒绝并回滚）。
+
+> [!IMPORTANT]
+> **在插件面板（GUI）里粘贴时，用 `github:` 形式，不要用 `https://github.com/...`。**
+> pnpm 会把 HTTPS 地址规范化成 `github:qilingzon/po-gen` 存进 profile 的 `package.json`；
+> 第二次再粘同一个 HTTPS 地址，依赖值没有任何变化，面板拿"你粘的那串"和存档比对、比不中，
+> 就会报「无法从依赖变更中确定安装了哪一个包」。粘 `github:qilingzon/po-gen`（无版本）
+> 或 `github:qilingzon/po-gen#v0.5.53`（新 tag，值会变）都能正常装。
+> 根因与宿主判定代码见 [CHANGELOG 0.5.53](CHANGELOG.md)。
+
+### 方式 D：一键更新（推荐，绕开面板判定）
+
+```powershell
+# 在解压出来的插件目录里
+powershell -File .\tools\update.ps1                 # 更新 desktop 到最新 release tag
+powershell -File .\tools\update.ps1 -Profile gen4-hl # 指定 profile
+powershell -File .\tools\update.ps1 -Check           # 只查有没有新版
+```
+
+脚本会：读当前版本 → 取最新 release tag → （桌面端）先备份并要求 `BACKUP-OK` → 用
+`dsh plugin add github:qilingzon/po-gen#<tag>` 安装 → 回读新版本并打印 `UPDATE-OK 旧 → 新`。
+它走 CLI，不经过面板那段"依赖值变化"判定，所以不会再撞上歧义报错。
 
 ### 方式 C：手动装 zip（完全离线）
 
 1. 到 [Releases](https://github.com/qilingzon/po-gen/releases) 下载
    `dsh-infinite-gen-4-<版本>.zip` 与 `SHA256SUMS.txt`；
-2. 校验：`certutil -hashfile dsh-infinite-gen-4-0.5.52.zip SHA256`（macOS：`shasum -a 256`）；
+2. 校验：`certutil -hashfile dsh-infinite-gen-4-0.5.53.zip SHA256`（macOS：`shasum -a 256`）；
 3. 解压后把整个 `dsh-infinite-gen-4` 目录复制到这三处（已存在就覆盖）：
    - `$DSH_HOME\plugins\dsh-infinite-gen-4`
    - `$DSH_HOME\node_modules\dsh-infinite-gen-4`
@@ -104,7 +125,7 @@ dsh plugin --profile desktop why dsh-infinite-gen-4   # 确认已入依赖树
 ## 验证装没装上
 
 ```powershell
-# 三条都应输出 0.5.52
+# 三条都应输出 0.5.53
 Get-Content "$env:USERPROFILE\.dsh\plugins\dsh-infinite-gen-4\package.json" | Select-String '"version"'
 ```
 
@@ -129,7 +150,7 @@ irm https://raw.githubusercontent.com/qilingzon/po-gen/main/install.ps1 -OutFile
 
 ```bash
 dsh plugin --profile desktop remove dsh-infinite-gen-4
-dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.52
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.53
 ```
 
 ## 回滚

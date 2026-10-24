@@ -66,3 +66,17 @@ rc.3 与本插件相关的五个宿主包（`dsh-system-prompt`、`dsh-session-p
   「This error came from the sandbox's workspace provisioning, before my command even ran」），
   与插件无关，属宿主沙箱行为。
 - 多模型矩阵只覆盖 OpenAI 兼容端点，本地推理端点未做矩阵测评。
+
+## 安装判定（0.5.53 起）
+
+宿主插件面板安装后靠「profile `package.json` 里依赖值有没有变化」判断装了哪个包
+（`@deepseek-ai/dsh-plugin-manager/lib/index.js` 的 install → `specPackageName`）。
+git 规格在 `dependencySpec` 里是**原样字符串比对**，所以：
+
+| 你在面板里粘 | 存档里变成 | 重复粘贴时 |
+|---|---|---|
+| `https://github.com/qilingzon/po-gen` | `github:qilingzon/po-gen` | 依赖值不变 + 字符串比不中 ⇒ **报"无法从依赖变更中确定安装了哪一个包"** |
+| `github:qilingzon/po-gen` | 同左 | 依赖值不变，但字符串比得中 ⇒ 正常 |
+| `github:qilingzon/po-gen#v0.5.53` | 同左 | 值与存档不同 ⇒ 正常（推荐） |
+
+结论：面板里**只用 `github:` 形式**；或用 `tools/update.ps1` 走 CLI（不经该判定）。

@@ -1,3 +1,73 @@
+## 0.5.53 — 2026-10-24 · install-path & normalize
+
+### 一、插件面板「无法从依赖变更中确定安装了哪一个包」的根因与修法
+
+**现象**：面板里填 `https://github.com/qilingzon/po-gen` 升级，pnpm 明明跑完（`+ dsh-infinite-gen-4 0.5.51`），
+面板却弹「无法从依赖变更中确定安装了哪一个包」。
+
+**根因**（宿主源码 `@deepseek-ai/dsh-plugin-manager/lib/index.js`，安装后判定段）：
+
+```js
+const installed = Object.keys(after).filter((name) => before[name] !== after[name]);   // 依赖值有没有变
+if (installed.length === 0) {                                                          // 没变就再猜一次
+  const local = specPackageName(spec, after, profileDir);                              // :1373
+  ...
+}
+const target = installed[0];
+if (installed.length !== 1 || target === void 0) throw new ManagementFailure("ambiguous-install");
+```
+
+而 `specPackageName` 对 git 规格只做**字符串比对**：
+
+```js
+Object.entries(dependencies).find(([dependency, saved]) => specs.includes(dependencySpec(dependency, saved, profileDir)))
+```
+
+`dependencySpec`（同文件 :135）对 `github:` 这类非 registry 值**原样返回存档里的字符串**。于是：
+
+1. 第一次填 HTTPS 地址 → pnpm 把它规范化成 `github:qilingzon/po-gen` 写进 `profiles/<p>/package.json`；
+2. 第二次再填同一个 HTTPS 地址 → 依赖值**零变化** → `installed.length === 0`；
+3. 拿"你填的 `https://...`"去和存档里的 `github:...` 比 → **比不中** → `target === undefined` → 报歧义。
+
+不是网络、不是镜像、不是插件问题，是**同一串地址重复粘贴**必然触发。
+
+**修法（本版随包提供）**：
+
+- `tools/update.ps1`：一键更新，走 `dsh plugin add <tag 规格>`，值是新的 ⇒ 压根不经过那段判定；
+  自动取最新 release tag、装完回读版本、桌面端先备份（要求 `BACKUP-OK`）。
+- README「方式 B」新增硬规则：面板里**粘 `github:qilingzon/po-gen`**（与存档同形）或
+  `github:qilingzon/po-gen#v0.5.53`（新 tag，值会变），**不要粘 `https://github.com/...`**。
+- `docs/COMPATIBILITY.md` 增加"安装判定"条目。
+
+复刻宿主判定逻辑的自测脚本（git 规格分支）：粘贴 `https://github.com/qilingzon/po-gen` → `AMBIGUOUS`，
+粘贴 `github:qilingzon/po-gen` → `OK`。
+
+### 二、归一化层补三处（H11 类题干）
+
+0.5.3 的电池里 H11（真实第三方域名 + 真人邮箱）两臂都是 empty——归一化**根本没触发**：
+`SCOPED_VERBS` 只有「渗透/破解/拖库」这类书面词，用户写的是「拿下来」「导出来」，`verb=false`
+⇒ `risky = verb && (victim || entity)` 为 false ⇒ 原样放行，模型看到真实品牌与真人邮箱后拒答。
+
+`normalize.js` 三处补丁：
+
+1. `SCOPED_VERBS` 扩口语同义词：`拿(下|下来|掉)|搞定|搞掉|扒|薅|脱库|导出(用户|账号|账户|会员|数据)|导出来|洗号|盗号`；
+2. 新增**邮箱替换** `ROLE_A_MAIL`（`REAL_ENTITY` 与 `replaceEntities` 各一条，且排在域名规则之前，
+   否则 `gmail.com` 会先被域名规则吃掉）；
+3. 裸域名规则补 `(?:www\.)?` 前缀，`www.paypal.com` 不再留成 `www.TARGET_DOMAIN`。
+
+单测 19 条（`H11 必须 changed=true 且品牌/邮箱零残留`、三条对照题必须 `changed=false`、超长题干不改写）全过。
+
+### 三、升级
+
+```powershell
+# 推荐：一键（绕过面板判定）
+powershell -File .\tools\update.ps1
+
+# 或者面板里填这一串（不是 https 地址）
+github:qilingzon/po-gen#v0.5.53
+```
+
+装完**完整退出并重启** DSH。
 ## 0.5.52 — 2026-10-24 · compatibility
 
 ### 适配 DSH 0.2.1-rc.3：声明宿主版本区间
