@@ -25,9 +25,21 @@
 功能无差异。插件依赖的正是前者（提示段 `text(context)` 求值、投影 `stateVersion=2`、
 `tools.register` + `execute(args, exec)`），所以接口面无破坏性变更。
 
-真机跑过：用 `@deepseek-ai/dsh@0.2.1-rc.3` 的 CLI + `gen4-hl` profile（`file:` 安装本插件）+
-`patch_rc3_armor.yml`（r4 / deepseek-v4.1-flash / max + `mode: armor`）headless 单轮，
-插件正常装载、无 `ERR_MODULE_NOT_FOUND`，`gen5_verify` 与 `delivery_profile` 都返回结构化结果。
+真机跑过两次，结论分开写：
+
+- **装载与注入成立**：`@deepseek-ai/dsh@0.2.1-rc.3` 的 CLI + `gen4-hl` profile（插件 0.5.52）+
+  `patch_rc3_armor.yml`（r4 / deepseek-v4.1-flash / max + `mode: armor`）headless 单轮，
+  180s 内 stderr 产出 17,138 B 的 `dsh: reasoning:` 流，无 `ERR_MODULE_NOT_FOUND`、
+  无 `Cannot find package`、无 `TypeError`；`dsh --profile rc3 --dump-config` 也确认 profile 树里
+  有 `- id: infinite-gen-4`（exit 0 / 0.6s）。
+- **工具层证据沿用 0.5.5**：0.5.5 曾在同一 rc.3 CLI 上跑通 `gen5_verify`（`verdict=OK`、9 项 checks
+  全过、`prompt-file=18,931 chars`）与 `delivery_profile`。0.5.52 的 `index.js`（49,866 B）、
+  `client.js`（17,687 B）与之逐字节相同，因此该结论对 0.5.52 有效，但没有另跑一遍。
+
+未跑通的、如实记在这里：`--profile rc3`（自建 profile）的原生 headless 两次都是 0 字节输出并超时
+（200s / 240s，未创建会话目录，`--dump-config` 却在 0.6s 正常退出）⇒ 卡在模型调用之前，属宿主侧；
+rc.3 的题干传参语义也与 rc.2 不同（观察到的行为是把 app 名 `headless` 当成题干，stdin 里的问题未被采用）。
+两者都写进了 `docs/COMPATIBILITY.md` 的已知限制，本版不修。
 
 ### 兼容性判定的实测矩阵
 
@@ -43,7 +55,7 @@
 ### 不变的部分
 
 包名、`dsh.id`、段名 `infinite-gen-4:global-system-prompt`、工具名、路由、设置文件格式、提示词
-（`b37-lite.md` 22,112 B）全部未改；这是纯元数据兼容性补充，交付能力与 0.5.51 相同。
+（`b37-lite.md` 22,113 B）全部未改；这是纯元数据兼容性补充，交付能力与 0.5.51 相同。
 
 ## 0.5.51 — 2026-10-24 · fix
 

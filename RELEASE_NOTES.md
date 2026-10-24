@@ -36,18 +36,22 @@ CSS module 类名哈希与构建路径字符串。插件依赖的三条通道（
 会话投影 `stateVersion=2` 带 `sessionId`、`tools.register` 的 `execute(args, exec)`）全部在
 未变化的那批包里。
 
-rc.3 上的实际跑通证据（全部可回读）：
+rc.3 上的实际证据（全部可回读）：
 
 | 检查 | 结果 |
 |---|---|
-| profile 内装载 | `dsh plugin --profile rc3 add 'file:…'` 成功；补装宿主栈后从 pending 转为加载，无 `ERR_MODULE_NOT_FOUND` |
-| 原生 headless | `gen5_verify` 返回 `verdict=OK`、9 项 checks 全过、自报 `version=0.5.52` |
-| 工具层 | `delivery_profile` 正常返回模板库 |
-| 系统提示 | 注入 b37-lite 全文（18,931 字符） |
-| 归一化 | `normalize.enabled=true`，本轮 `steps=1 changed=0`（无实体需改写，属正常） |
+| profile 内安装 | `dsh plugin --profile rc3 add 'file:…'` exit 0（6.9s），profile `dependencies` 写入本插件 |
+| profile 内装载 | `dsh --profile rc3 --dump-config` exit 0 / 0.6s，树里出现 `- id: infinite-gen-4` |
+| 0.5.52 起会话 | rc.3 CLI + `gen4-hl` profile + 0.5.52：180s 内 stderr 产出 17,138 B 的 `dsh: reasoning:` 流，无 `ERR_MODULE_NOT_FOUND` / `Cannot find package` / `TypeError` |
+| 工具层 | 0.5.5 已在 rc.3 上跑通 `gen5_verify`（`verdict=OK`、9 项 checks 全过、`prompt-file=18,931 chars`）；0.5.52 的 `index.js` 与之逐字节相同，证据可继承 |
 
-日志：`.diag\compat053\smoke_rc3_native.txt` / `.err.txt`，结论摘要
-`.diag\compat053\smoke_rc3_verdict.md`。
+未跑通的项如实记录：`--profile rc3` 原生 headless 两次尝试均 0 字节输出并超时（200s / 240s）；
+rc.3 的题干传递语义与 rc.2 不同（观察到的行为是把 `headless` 当成题干）；该轮工具调用撞上 rc.3
+沙箱的 workspace provisioning 报错。这些属宿主侧差异，未在本版修复，已列入 `docs/COMPATIBILITY.md`
+的已知限制。
+
+日志与复现命令：`.diag\compat053\smoke_rc3_052_verdict.md`（0.5.52）与
+`.diag\compat053\smoke_rc3_verdict.md`（0.5.5 工具层）。
 
 ### 3. 新增 `docs/COMPATIBILITY.md`
 
@@ -72,6 +76,7 @@ rc.3 上的实际跑通证据（全部可回读）：
 | 客户端静态（`client_static.mjs`，徽标与面板） | 24/24 PASS |
 | 徽标开关（`toggle_051.mjs`） | 9/9 PASS |
 | 安装实证（空 `DSH_HOME` + `install.ps1 -LocalZip`） | `INSTALL-OK v0.5.52`，两处回读一致（`0.5.52` / `index.js 0cf849693f4c`） |
+
 > 说明：§1–§4 由 build_release.js 模板继承，其中变体交付率与电池数字截至 0.4.2–0.4.10，属**历史数据**。
 
 ## 1. 这一版的关键事实（都可复跑核验）

@@ -46,7 +46,8 @@ rc.3 与本插件相关的五个宿主包（`dsh-system-prompt`、`dsh-session-p
 |---|---|---|
 | Windows 11 · 桌面端 0.2.1-rc.2 | `install.ps1` 三处刷入 | 三处 `version` 一致、`gen5_verify` OK |
 | Windows 11 · CLI 0.2.1-rc.2（`dsh --profile gen4-hl`） | `dsh plugin add` / 源同步 | headless 会话可交付 |
-| Windows 11 · CLI 0.2.1-rc.3（`dsh plugin --profile rc3 add file:`） | 装进 rc.3 自建 profile | 装载无导入错；`gen5_verify` / `delivery_profile` 可调用 |
+| Windows 11 · CLI 0.2.1-rc.3，自建 profile（`dsh plugin --profile rc3 add file:`） | 装进 rc.3 profile | 安装 exit 0；`--dump-config` 树里出现 `- id: infinite-gen-4`（0.6s）；原生 headless **未跑通**（见下） |
+| Windows 11 · CLI 0.2.1-rc.3 + 既有 `gen4-hl` profile | 源同步 + headless 单轮 | 会话正常起、17 KB reasoning 流、无导入错；工具层证据沿用 0.5.5 的 `gen5_verify`（同一 `index.js` 字节） |
 | Git Bash · Windows | `install.sh` | `-f` / `-l` / `-r` 全通 |
 
 ## 未验证 / 已知限制
@@ -56,4 +57,12 @@ rc.3 与本插件相关的五个宿主包（`dsh-system-prompt`、`dsh-session-p
 - **跨版本混装**：用 rc.3 的 CLI 去跑一个由 rc.2 物化出来的 profile，宿主会把 row 级插件逐条禁用
   （报 `is incompatible with dsh 0.2.1-rc.3`），插件则停在 `pending (waiting for services: tools, systemPrompt)`。
   这不是插件问题：同一 profile 的宿主包必须与 CLI 同版本，升级客户端后应让 profile 重新物化。
+- **rc.3 自建 profile 的 headless 起不来**（宿主侧，本插件不改）：`--profile rc3 ... headless` 连续两次
+  stdout/stderr 均 0 字节并超时（200s / 240s），未创建会话目录；同一 profile 的 `--dump-config` 却在
+  0.6s 内正常退出 ⇒ 卡在模型调用之前。用既有 profile（`gen4-hl`）则能正常起会话。
+- **rc.3 题干传参语义变化**：rc.2 可用 stdin 传题干；在 rc.3 上观察到的是 app 名 `headless` 被当成题干
+  （stdin 的问题未被采用）。改用 app 参数位置传题干前请先自测。
+- **rc.3 沙箱 workspace provisioning**：rc.3 下首次工具调用可能报 workspace 供给失败（模型侧原文：
+  「This error came from the sandbox's workspace provisioning, before my command even ran」），
+  与插件无关，属宿主沙箱行为。
 - 多模型矩阵只覆盖 OpenAI 兼容端点，本地推理端点未做矩阵测评。
