@@ -14,7 +14,7 @@
 set -euo pipefail
 
 PLUGIN="dsh-infinite-gen-4"
-REPO="${GEN4_REPO:-qilingzon/dsh-infinite-gen-4}"
+REPO="${GEN4_REPO:-qilingzon/po-gen}"
 VERSION=""
 PROFILE="desktop"
 DRY_RUN=0

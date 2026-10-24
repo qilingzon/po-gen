@@ -41,4 +41,4 @@
 ## 报告问题
 
 发现安全问题请开 issue（不要贴密钥或会话原文）：
-<https://github.com/qilingzon/dsh-infinite-gen-4/issues>
+<https://github.com/qilingzon/po-gen/issues>

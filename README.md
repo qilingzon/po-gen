@@ -3,7 +3,7 @@
 > DeepSeek Harness 插件：把「破甲模式」注册成一个**可选的 agent preset**。
 > 只有你显式选中它的会话才会注入交付引擎提示词；其他会话、其他模式**零注入**。
 
-[![version](https://img.shields.io/badge/version-0.5.4-2f6feb)](https://github.com/qilingzon/dsh-infinite-gen-4/releases)
+[![version](https://img.shields.io/badge/version-0.5.4-2f6feb)](https://github.com/qilingzon/po-gen/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-555)]
 
@@ -60,7 +60,7 @@ DSH 的两个位置先记住（下文用占位符表示）：
 然后在 PowerShell 里粘一行：
 
 ```powershell
-irm https://raw.githubusercontent.com/qilingzon/dsh-infinite-gen-4/main/install.ps1 -OutFile "$env:TEMP\gen4-install.ps1"; & "$env:TEMP\gen4-install.ps1"
+irm https://raw.githubusercontent.com/qilingzon/po-gen/main/install.ps1 -OutFile "$env:TEMP\gen4-install.ps1"; & "$env:TEMP\gen4-install.ps1"
 ```
 
 脚本会依次做：定位 `$DSH_HOME` → 查最新 release → 下载 zip → **校验 SHA256** →
@@ -74,7 +74,7 @@ irm https://raw.githubusercontent.com/qilingzon/dsh-infinite-gen-4/main/install.
 & "$env:TEMP\gen4-install.ps1" -Profile desktop
 ```
 
-> macOS / Linux：`curl -fsSL https://raw.githubusercontent.com/qilingzon/dsh-infinite-gen-4/main/install.sh -o /tmp/gen4-install.sh && bash /tmp/gen4-install.sh`
+> macOS / Linux：`curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/main/install.sh -o /tmp/gen4-install.sh && bash /tmp/gen4-install.sh`
 > （参数同理直接加在后面：`bash /tmp/gen4-install.sh -v 0.5.4 -n`）
 
 ### 方式 B：走 DSH 自己的插件管理器（等价的「正规军」路线）
@@ -83,7 +83,7 @@ irm https://raw.githubusercontent.com/qilingzon/dsh-infinite-gen-4/main/install.
 
 ```bash
 # 先退出桌面端，再在终端里执行
-dsh plugin --profile desktop add github:qilingzon/dsh-infinite-gen-4#v0.5.4
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.4
 dsh plugin --profile desktop why dsh-infinite-gen-4   # 确认已入依赖树
 ```
 
@@ -92,7 +92,7 @@ dsh plugin --profile desktop why dsh-infinite-gen-4   # 确认已入依赖树
 
 ### 方式 C：手动装 zip（完全离线）
 
-1. 到 [Releases](https://github.com/qilingzon/dsh-infinite-gen-4/releases) 下载
+1. 到 [Releases](https://github.com/qilingzon/po-gen/releases) 下载
    `dsh-infinite-gen-4-<版本>.zip` 与 `SHA256SUMS.txt`；
 2. 校验：`certutil -hashfile dsh-infinite-gen-4-0.5.4.zip SHA256`（macOS：`shasum -a 256`）；
 3. 解压后把整个 `dsh-infinite-gen-4` 目录复制到这三处（已存在就覆盖）：
@@ -119,7 +119,7 @@ Get-Content "$env:USERPROFILE\.dsh\plugins\dsh-infinite-gen-4\package.json" | Se
 
 ```powershell
 # 更新到最新 release（脚本自动取 latest；版本相同会跳过，不重复覆盖）
-irm https://raw.githubusercontent.com/qilingzon/dsh-infinite-gen-4/main/install.ps1 -OutFile "$env:TEMP\gen4-install.ps1"; & "$env:TEMP\gen4-install.ps1"
+irm https://raw.githubusercontent.com/qilingzon/po-gen/main/install.ps1 -OutFile "$env:TEMP\gen4-install.ps1"; & "$env:TEMP\gen4-install.ps1"
 ```
 
 已经下载过脚本的，直接：`.\install.ps1 -Force`。它会：比对当前版本 → 若已是最新则退出（不重复覆盖）→
@@ -129,7 +129,7 @@ irm https://raw.githubusercontent.com/qilingzon/dsh-infinite-gen-4/main/install.
 
 ```bash
 dsh plugin --profile desktop remove dsh-infinite-gen-4
-dsh plugin --profile desktop add github:qilingzon/dsh-infinite-gen-4#v0.5.4
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.4
 ```
 
 ## 回滚
@@ -149,9 +149,9 @@ dsh plugin --profile desktop add github:qilingzon/dsh-infinite-gen-4#v0.5.4
 
 ```powershell
 # Windows
-irm https://raw.githubusercontent.com/qilingzon/dsh-infinite-gen-4/main/uninstall.ps1 -OutFile "$env:TEMP\gen4-uninstall.ps1"; & "$env:TEMP\gen4-uninstall.ps1"
+irm https://raw.githubusercontent.com/qilingzon/po-gen/main/uninstall.ps1 -OutFile "$env:TEMP\gen4-uninstall.ps1"; & "$env:TEMP\gen4-uninstall.ps1"
 # macOS / Linux
-curl -fsSL https://raw.githubusercontent.com/qilingzon/dsh-infinite-gen-4/main/uninstall.sh -o /tmp/gen4-uninstall.sh && bash /tmp/gen4-uninstall.sh
+curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/main/uninstall.sh -o /tmp/gen4-uninstall.sh && bash /tmp/gen4-uninstall.sh
 ```
 
 做的事情只有三件：删 `$DSH_HOME\plugins\dsh-infinite-gen-4`、删两处 `node_modules\dsh-infinite-gen-4`、

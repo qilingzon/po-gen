@@ -45,11 +45,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/qilingzon/dsh-infinite-gen-4.git"
+    "url": "git+https://github.com/qilingzon/po-gen.git"
   },
-  "homepage": "https://github.com/qilingzon/dsh-infinite-gen-4#readme",
+  "homepage": "https://github.com/qilingzon/po-gen#readme",
   "bugs": {
-    "url": "https://github.com/qilingzon/dsh-infinite-gen-4/issues"
+    "url": "https://github.com/qilingzon/po-gen/issues"
   },
   "license": "MIT",
   "engines": {
@@ -59,7 +59,7 @@
     "id": "dsh-infinite-gen-4",
     "name": "无限四代",
     "version": "0.5.4",
-    "repo": "https://github.com/qilingzon/dsh-infinite-gen-4",
+    "repo": "https://github.com/qilingzon/po-gen",
     "permissions": "系统提示词注入（仅 armor 预设）, 客户端状态条, 会话投影, 工作提醒顾问",
     "client": {
       "platform": "web",

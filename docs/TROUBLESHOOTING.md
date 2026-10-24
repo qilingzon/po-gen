@@ -21,7 +21,7 @@ Get-ChildItem "$env:USERPROFILE\.dsh\{plugins,node_modules,profiles\desktop\node
 三处版本必须一致；不一致就重跑安装器：
 
 ```powershell
-irm https://github.com/qilingzon/dsh-infinite-gen-4/releases/latest/download/install.ps1 -OutFile "$env:TEMP\gen4-install.ps1"
+irm https://github.com/qilingzon/po-gen/releases/latest/download/install.ps1 -OutFile "$env:TEMP\gen4-install.ps1"
 & "$env:TEMP\gen4-install.ps1" -Force
 ```
 

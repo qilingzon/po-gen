@@ -20,7 +20,7 @@ param(
   [switch]$ListBackups,
   [string]$Restore = "",
   [switch]$Doctor,
-  [string]$Repo = "qilingzon/dsh-infinite-gen-4"
+  [string]$Repo = "qilingzon/po-gen"
 )
 
 $ErrorActionPreference = "Stop"
