@@ -91,11 +91,12 @@ dsh plugin --profile desktop why dsh-infinite-gen-4   # 确认已入依赖树
 缺点：需要能访问 GitHub、且 profile 的 peer 校验必须全绿（有一个插件不满足 peer，整次安装会被拒绝并回滚）。
 
 > [!IMPORTANT]
-> **在插件面板（GUI）里粘贴时，用 `github:` 形式，不要用 `https://github.com/...`。**
-> pnpm 会把 HTTPS 地址规范化成 `github:qilingzon/po-gen` 存进 profile 的 `package.json`；
-> 第二次再粘同一个 HTTPS 地址，依赖值没有任何变化，面板拿"你粘的那串"和存档比对、比不中，
-> 就会报「无法从依赖变更中确定安装了哪一个包」。粘 `github:qilingzon/po-gen`（无版本）
-> 或 `github:qilingzon/po-gen#v0.5.53`（新 tag，值会变）都能正常装。
+> **在插件面板（GUI）里升级，规格必须带「新的 tag」：`github:qilingzon/po-gen#v0.5.53`。**
+> 面板只有这一种写法能过，原因是宿主 `dsh-plugin-manager` 的两道检查正好夹住无 tag 写法：
+> - 粘**和存档一模一样**的串（例如已装过 `github:qilingzon/po-gen` 再粘同一串）→ 判「这个包已经安装；要安装其他版本，请先卸载它」（`already-installed`）；
+> - 粘**等价但不同**的串（`https://github.com/...`，pnpm 会规范化成 `github:`）→ 依赖值没变化、字符串又比不中 → 报「无法从依赖变更中确定安装了哪一个包」（`ambiguous-install`）。
+>
+> 带新 tag 时两个问题都不成立：字符串与存档不同 ⇒ 不是"已安装"，且依赖值确实改变 ⇒ 能确定装了哪个包。
 > 根因与宿主判定代码见 [CHANGELOG 0.5.53](CHANGELOG.md)。
 
 ### 方式 D：一键更新（推荐，绕开面板判定）

@@ -76,7 +76,10 @@ git 规格在 `dependencySpec` 里是**原样字符串比对**，所以：
 | 你在面板里粘 | 存档里变成 | 重复粘贴时 |
 |---|---|---|
 | `https://github.com/qilingzon/po-gen` | `github:qilingzon/po-gen` | 依赖值不变 + 字符串比不中 ⇒ **报"无法从依赖变更中确定安装了哪一个包"** |
+| `github:qilingzon/po-gen`（无 tag） | 同左 | 依赖值不变，字符串比得中 ⇒ 判**「这个包已经安装；要安装其他版本，请先卸载它」**（`already-installed`，HMR 开启时） |
 | `github:qilingzon/po-gen` | 同左 | 依赖值不变，但字符串比得中 ⇒ 正常 |
 | `github:qilingzon/po-gen#v0.5.53` | 同左 | 值与存档不同 ⇒ 正常（推荐） |
 
 结论：面板里**只用 `github:` 形式**；或用 `tools/update.ps1` 走 CLI（不经该判定）。
+**结论（补正）**：面板里**只能**用带新 tag 的规格；无 tag 写法会撞上面两道检查之一。
+`tools/update.ps1` 用的也是 tag 规格，因此不受影响。
