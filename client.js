@@ -375,11 +375,11 @@ window.__ModuleLoader__.load({
               style: switchStyle(sessionPaused),
               onClick: function () { commitSession(isArmor ? (sessionPaused ? "auto" : "off") : (sessionPaused ? "off" : "on")); }
             }, react.createElement("span", { style: knobStyle(sessionPaused) })),
-            myOverride
+            (myOverride && !isArmor)
               ? react.createElement("button", {
                 type: "button",
                 "data-gen4-session-reset": "1",
-                title: "恢复跟随上面的设置",
+                title: "清除这一场的单独设置，恢复按上面的总开关",
                 onClick: function () { commitSession("auto"); },
                 style: {
                   flex: "none",
@@ -390,7 +390,7 @@ window.__ModuleLoader__.load({
                   padding: "0",
                   cursor: "pointer"
                 }
-              }, "跟随")
+              }, "恢复默认")
               : null
           )
         ));
