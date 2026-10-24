@@ -1,36 +1,33 @@
-# RELEASE NOTES · dsh-infinite-gen-4 v0.5.54-lab-20261024
+# RELEASE NOTES · dsh-infinite-gen-4 v0.5.55-lab-20261024
 
 > 由 `node .diag/build_release.js` 生成；逐文件 SHA256 见同目录 `MANIFEST.json`。
 > 源目录：`D:\deepseek\armor-lab\gen4_home\plugins\dsh-infinite-gen-4`（lab 规范源）。**发布件不含 `*.bak*` / `.REJECTED.md` / node_modules。**
 
-## 0. 本版变更（0.5.54）
+## 0. 本版变更（0.5.55）
 
-**一句话**：修掉「我只在某一场对话打开破甲，别的对话也显示/以为开了」的串场问题。
+**一句话**：破甲模式里不再出现「启用破甲」，只剩「本对话暂停破甲」。
 
-### 根因
-- 按对话开关判断「本场是哪一场」时，取的是会话投影 `armor.sessionId`。投影没就绪或读到别场快照时，
-  这个值可能为空或不匹配 → 「仅本对话」那一行整行不渲染 → 用户只能去点总开关，
-  而总开关写的是 `scope:"global"`（**所有对话**都注入）→ 看起来就是「一场开、全场开」。
-- 「开没开」的状态是前端用 `sessions` 表 + `isArmor/global` 自己推的，宿主知道真值却不告诉前端。
+### 现象 / 根因
+0.5.54 只在破甲模式里隐藏了**总开关**（`scope`），按对话那一行是两种模式共用的，
+文案照搬普通模式的「启用」——破甲模式本来就是破甲，这一行唯一有意义的动作是**暂停这一场**。
 
 ### 修法
-- `slots.register({ ..., inject: (sessionId) => ({ sessionId }) })`：本场 id 改用宿主注入的
-  `props.sessionId`，投影里的 `armor.sessionId` 只作兜底。
-- `armor` 投影 `view()` 增字段：`override`（`on`/`off`/`auto`）与基线 `enabled`；
-  前端仅在 `hostSessionId === mySessionId` 时采信，避免错场串读。
-- 最终判定：`on` → 开；`off` → 关；`auto` → `baseOn || isArmor`。
-- 文案去歧义：「仅本对话启用」/「所有对话都启用（其他模式）」。
+- 标题分叉：破甲模式「本对话暂停破甲」，普通模式「仅本对话启用」。
+- 语义反转：破甲模式 `sessionPaused = (myOverride === "off")`，按下 = 已暂停，再点写 `auto` 恢复；
+  普通模式仍按下 = 本场已开启。
+- 副标题：破甲模式「这一场：破甲运行中 / 已暂停 / 默认：破甲运行中」；普通模式保持原三态。
+- 提示行、`aria-label` 同步；破甲模式依旧不显示总开关。
 
 ### 证据
-- 契约测试 `harness.mjs` **29/29**；客户端静态断言 `client_static.mjs` **30/30**；
-  `node --check` index/client 均为 0。
-- 提示词逐字节未改（`b37-lite.md` 22,113 B，SHA256 前缀 `B4B8363E3FF3C90A`）。
+- 客户端静态断言 **35/35**（新增 C29–C33）、契约测试 **29/29**、徽标点击回归 **9/9**；
+  `node --check` index/client 均 0。
+- 提示词逐字节未改（`b37-lite.md` 22,113 B）。
 
 ### 升级
 ```powershell
-dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.54
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.55
 ```
-装完**必须重启**桌面端（宿主已加载的插件不会热替换），重启后徽标文案为 `无限5代`。
+装完必须重启桌面端。
 > 说明：§1–§4 由 build_release.js 模板继承，其中变体交付率与电池数字截至 0.4.2–0.4.10，属**历史数据**。
 
 ## 1. 这一版的关键事实（都可复跑核验）
@@ -72,7 +69,7 @@ dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.54
 ## 4. 校验方式
 
 ```powershell
-pwsh -File .diag\verify_release.ps1 -Version v0.5.54-lab-20261024      # 发布件 == lab 源 == 两份生效副本
+pwsh -File .diag\verify_release.ps1 -Version v0.5.55-lab-20261024      # 发布件 == lab 源 == 两份生效副本
 node .diag\verify_regression.js                          # 判据金标
 node .diag\selftest.js                                   # 12 项
 pwsh -File .diag\overnight_verify.ps1                     # 一条命令全绿

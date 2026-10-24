@@ -249,6 +249,8 @@ window.__ModuleLoader__.load({
         ? true
         : (myOverride === "off" ? false : (baseOn || isArmor));
       var sessionKnown = mySessionId !== "";
+      // 破甲模式里这一行是「暂停」，开关按下的状态 = 已暂停；普通模式按下的状态 = 本场已开启。
+      var sessionPaused = isArmor ? (myOverride === "off") : sessionOn;
       // 可见性：破甲模式永远显示；其他模式要么开了「显示徽标」，要么处于全局启用，
       // 要么这场对话被单独打开过（否则打开面板的入口本身就不见了）。
       var visible = isArmor || global || showBadge === true || myOverride === "on";
@@ -351,15 +353,15 @@ window.__ModuleLoader__.load({
           react.createElement(
             "span",
             { style: { display: "flex", flexDirection: "column", gap: "2px" } },
-            react.createElement("span", null, "仅本对话启用"),
+            react.createElement("span", null, isArmor ? "本对话暂停破甲" : "仅本对话启用"),
             react.createElement(
               "span",
               { style: { color: "#9ca3af", fontSize: "10px", lineHeight: "13px" } },
               myOverride === "on"
-                ? "这一场：已打开（" + mySessionId.slice(0, 8) + "…）"
+                ? (isArmor ? "这一场：破甲运行中（" : "这一场：已打开（") + mySessionId.slice(0, 8) + "…）"
                 : (myOverride === "off"
-                  ? "这一场：已关闭（" + mySessionId.slice(0, 8) + "…）"
-                  : "跟随上面的设置")
+                  ? (isArmor ? "这一场：已暂停（" : "这一场：已关闭（") + mySessionId.slice(0, 8) + "…）"
+                  : (isArmor ? "默认：破甲运行中" : "跟随上面的设置"))
             )
           ),
           react.createElement(
@@ -367,12 +369,12 @@ window.__ModuleLoader__.load({
             { style: { display: "flex", alignItems: "center", gap: "6px", flex: "none" } },
             react.createElement("button", {
               type: "button",
-              "aria-label": "本对话启用破甲",
+              "aria-label": isArmor ? "本对话暂停破甲" : "本对话启用破甲（仅这一场）",
               "data-gen4-toggle": "session",
-              "aria-pressed": sessionOn ? "true" : "false",
-              style: switchStyle(sessionOn),
-              onClick: function () { commitSession(sessionOn ? "off" : "on"); }
-            }, react.createElement("span", { style: knobStyle(sessionOn) })),
+              "aria-pressed": sessionPaused ? "true" : "false",
+              style: switchStyle(sessionPaused),
+              onClick: function () { commitSession(isArmor ? (sessionPaused ? "auto" : "off") : (sessionPaused ? "off" : "on")); }
+            }, react.createElement("span", { style: knobStyle(sessionPaused) })),
             myOverride
               ? react.createElement("button", {
                 type: "button",
@@ -423,7 +425,7 @@ window.__ModuleLoader__.load({
       ));
 
       var hint = isArmor
-        ? "「本对话」只影响当前这场；上面的「其他模式显示徽标」只管看得见。"
+        ? "破甲模式本身就是破甲：这里只有「暂停这一场」，不影响别场；下面的「其他模式显示徽标」只管看得见。"
         : (global
           ? "当前所有模式都注入；把「本对话」关掉只影响这一场。"
           : "当前只有破甲模式注入；打开「本对话」只给这一场开。");
