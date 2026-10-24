@@ -4,6 +4,12 @@ po-gen（原「无限代」破甲项目）——面向 DeepSeek Harness 的提�
 
 **当前版本 v0.5.3（第五代）**：目录 `versions/po-gen-5-v0.5.3/`，发行包在 [Release v0.5.3](https://github.com/qilingzon/po-gen/releases/tag/v0.5.3)。本仓是版本档案馆 + 安装入口；插件源码仓为 [qilingzon/dsh-infinite-gen-4](https://github.com/qilingzon/dsh-infinite-gen-4)。
 
+> **本仓根目录就是插件包本体**（`package.json` name=`dsh-infinite-gen-4`, version=`0.5.3`，`main=index.js`），所以插件市场/命令行可以直接填这一行安装：
+> ```
+> github:qilingzon/po-gen#v0.5.3
+> ```
+> `versions/` 下是历史归档，不会被加载。
+
 > 内部说明：平台内注册 ID 仍为 `dsh-infinite-gen-N`（存量实验平台兼容，改动会破坏已装 profile 的依赖解析）；对外产品名自 2026-09-10 起统一为 **po-gen**。
 
 ## 版本表
