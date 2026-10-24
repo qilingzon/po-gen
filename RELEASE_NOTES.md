@@ -1,29 +1,28 @@
-# RELEASE NOTES · dsh-infinite-gen-4 v0.5.56-lab-20261024
+# RELEASE NOTES · dsh-infinite-gen-4 v0.5.57-lab-20261024
 
 > 由 `node .diag/build_release.js` 生成；逐文件 SHA256 见同目录 `MANIFEST.json`。
 > 源目录：`D:\deepseek\armor-lab\gen4_home\plugins\dsh-infinite-gen-4`（lab 规范源）。**发布件不含 `*.bak*` / `.REJECTED.md` / node_modules。**
 
-## 0. 本版变更（0.5.56）
+## 0. 本版变更（0.5.57）
 
-**一句话**：把看不懂的「跟随」改成 **「恢复默认」**，并从破甲模式里删掉。
+**一句话**：破甲模式里不再有「启用/暂停破甲」这一行——本来就是破甲，没什么可问的。
 
-### 含义（先说人话）
-「恢复默认」= 清掉**这一场**单独设的开/关，恢复成「按上面的总开关走」。
-只在普通模式、且这一场确实被单独设过时才出现。
+### 为什么
+「本对话暂停破甲」是动作、「默认：破甲运行中」是状态，一行两种话术，读着就自相矛盾；
+功能上也不该有：要普通咨询，切预设或关总开关即可。
 
 ### 修法
-- 普通模式：文案「跟随」→「恢复默认」，悬停说明改为「清除这一场的单独设置，恢复按上面的总开关」。
-- 破甲模式：不再显示这个按钮（开关按下=暂停、再点=恢复，功能重复）。
-- 判断条件：`myOverride` → `myOverride && !isArmor`。
+- 破甲模式：整行不渲染，面板只剩「其他模式显示徽标」。
+- 普通模式：这一行仍是「仅本对话启用」（已打开/已关闭/跟随上面的设置），清覆盖按钮叫「恢复默认」。
+- 删掉只为破甲模式服务的那套「暂停反转」语义。
 
 ### 证据
-- 客户端静态断言 **38/38**（新增 C34 破甲模式不显示、C35 文案、C36 说明文字）；
-  `node --check client.js` = 0；契约 29/29、toggle 9/9 不变。
+- 客户端静态断言 **38/38**、契约 **29/29**、徽标点击回归 **9/9**；`node --check` = 0。
 - 提示词逐字节未改（`b37-lite.md` 22,113 B）。
 
 ### 升级
 ```powershell
-dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.56
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.57
 ```
 装完必须重启桌面端。
 > 说明：§1–§4 由 build_release.js 模板继承，其中变体交付率与电池数字截至 0.4.2–0.4.10，属**历史数据**。
@@ -67,7 +66,7 @@ dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.56
 ## 4. 校验方式
 
 ```powershell
-pwsh -File .diag\verify_release.ps1 -Version v0.5.56-lab-20261024      # 发布件 == lab 源 == 两份生效副本
+pwsh -File .diag\verify_release.ps1 -Version v0.5.57-lab-20261024      # 发布件 == lab 源 == 两份生效副本
 node .diag\verify_regression.js                          # 判据金标
 node .diag\selftest.js                                   # 12 项
 pwsh -File .diag\overnight_verify.ps1                     # 一条命令全绿
