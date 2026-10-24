@@ -225,13 +225,29 @@ window.__ModuleLoader__.load({
 
       var global = scope === "global";
       var isArmor = preset === "armor";
-      // 0.5.5：本对话。armor 投影带 sessionId，据此在设置里查这场对话的显式覆盖。
-      var mySessionId = armor && armor.sessionId ? String(armor.sessionId) : "";
+      // 0.5.54：本对话 id 取宿主注入的 sessionId（这才是当前这场对话），投影里的只作兜底。
+      // 之前只读投影：投影缺失/滞后时 mySessionId 为空 → 「仅本对话」那行整行不出现，
+      // 用户只能去点总开关 → 变成所有对话都注入，这就是「我只开了一场，别的对话也开了」。
+      var injectedSessionId = props && props.sessionId ? String(props.sessionId) : "";
+      var mySessionId = injectedSessionId || (armor && armor.sessionId ? String(armor.sessionId) : "");
       var myOverride = mySessionId && sessions ? sessions[mySessionId] : undefined;
+      // 0.5.54：宿主在投影里直接给出 enabled / override（唯一真值）。
+      // 客户端自己推的版本在「投影拿到的 sessionId 不是当前这场」时会把别的对话的状态显示成本对话的，
+      // 用户看到的现象就是「我只开了一场，别的对话也显示开了」。
+      var hostSessionId = armor && armor.sessionId ? String(armor.sessionId) : "";
+      var hostEnabled = armor && typeof armor.enabled === "boolean" && hostSessionId === mySessionId
+        ? armor.enabled
+        : undefined;
+      var hostOverride = armor && typeof armor.override === "string" && hostSessionId === mySessionId
+        ? armor.override
+        : undefined;
+      if (hostOverride && hostOverride !== "auto") myOverride = hostOverride;
       // 没覆盖时跟随设置：破甲会话默认开，其他模式默认跟随全局。
+      // 宿主给的是基线；破甲会话本身恒开，所以这边按 isArmor 再或一次。
+      var baseOn = typeof hostEnabled === "boolean" ? hostEnabled : global;
       var sessionOn = myOverride === "on"
         ? true
-        : (myOverride === "off" ? false : (isArmor || global));
+        : (myOverride === "off" ? false : (baseOn || isArmor));
       var sessionKnown = mySessionId !== "";
       // 可见性：破甲模式永远显示；其他模式要么开了「显示徽标」，要么处于全局启用，
       // 要么这场对话被单独打开过（否则打开面板的入口本身就不见了）。
@@ -335,14 +351,14 @@ window.__ModuleLoader__.load({
           react.createElement(
             "span",
             { style: { display: "flex", flexDirection: "column", gap: "2px" } },
-            react.createElement("span", null, "本对话启用破甲"),
+            react.createElement("span", null, "仅本对话启用"),
             react.createElement(
               "span",
               { style: { color: "#9ca3af", fontSize: "10px", lineHeight: "13px" } },
               myOverride === "on"
-                ? "仅这场：已打开（" + mySessionId.slice(0, 8) + "…）"
+                ? "这一场：已打开（" + mySessionId.slice(0, 8) + "…）"
                 : (myOverride === "off"
-                  ? "仅这场：已关闭（" + mySessionId.slice(0, 8) + "…）"
+                  ? "这一场：已关闭（" + mySessionId.slice(0, 8) + "…）"
                   : "跟随上面的设置")
             )
           ),
@@ -381,7 +397,7 @@ window.__ModuleLoader__.load({
         rows.push(react.createElement(
           "div",
           { key: "scope", style: ROW_STYLE },
-          react.createElement("span", null, "启用破甲（其他模式）"),
+          react.createElement("span", null, "所有对话都启用（其他模式）"),
           react.createElement("button", {
             type: "button",
             "aria-label": "启用破甲",
@@ -455,7 +471,8 @@ window.__ModuleLoader__.load({
         ctx.slots.register({
           name: "conversation.input.dock",
           id: "armor",
-          order: 30
+          order: 30,
+          inject: function (sessionId) { return { sessionId: sessionId }; }
         }, ArmorDock)
       );
     }

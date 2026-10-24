@@ -1,3 +1,54 @@
+# CHANGELOG
+
+## 0.5.54 — 2026-10-24 · 「只开了一场，别的对话也开了」根治
+
+### 现象
+普通模式（非破甲预设）里，在**某一场**对话把「本对话启用破甲」打开，
+其他对话的徽标也跟着变成「已开启」，用户由此认为破甲弥漫到了所有对话。
+
+### 根因（两处，叠在一起才出这个象）
+1. **本对话 id 取错了源**。`client.js` 里本对话 id 来自会话投影 `armor.sessionId`
+   （`useProjection("armor")`）。投影是**按会话初始化**的，某些时机下（会话刚建、
+   投影尚未 init、或读到的是别场的快照）这个值可能为空或不是当前这场：
+   - 为空 → `sessionKnown === false` → 「仅本对话」那一行**整行不渲染**；
+   - 不匹配 → 面板把**别的对话**的覆盖状态显示成这一场的。
+   用户看不到按对话开关，只能去点总开关「启用破甲（其他模式）」——
+   而那个开关写的是 `scope:"global"`，语义就是**所有对话都注入**。
+2. **状态显示由客户端自己推**。`sessions` 表 + `isArmor/global` 三态推理散在组件里，
+   宿主其实知道真值却没告诉前端。
+
+### 修法
+- **本对话 id 改用宿主注入值**：`slots.register({ ..., inject: (sessionId) => ({ sessionId }) })`，
+  组件 `props.sessionId` 是当前这场对话的权威 id（宿主 slot scope 为 `session`）。
+  投影里的 `armor.sessionId` 降级为兜底，两者不一致时以注入值为准。
+- **宿主给出真值**：`armor` 投影 `view()` 现在返回
+  `override`（`on` / `off` / `auto`）与 `enabled`（跟随设置时的基线，`baseEnabled(config,false)`）。
+  客户端只在 `hostSessionId === mySessionId` 时采信宿主值，避免错场串读。
+- **最终判定**：`on` → 开；`off` → 关；`auto` → `baseOn || isArmor`
+  （破甲会话本身恒开，普通会话跟随总开关）。
+- **文案去歧义**：按对话那行改为「仅本对话启用」、副标题「这一场：已打开/已关闭」；
+  总开关改为「所有对话都启用（其他模式）」，让两者一眼可分辨。
+
+### 证据
+- 契约测试 `D:\deepseek\armor-lab\.diag\session055\harness.mjs`：**29/29 PASS**
+  （新增 D01 live 对齐、D02 未覆盖仍 auto、D03 基线 enabled=false、D04 sessionId 透传；
+  D01 先 POST `{sessionId:"sessalpha01",session:"on"}` 再 view，验证跟设置文件实时对齐）。
+- 客户端静态断言 `client_static.mjs`：**30/30 PASS**
+  （新增 C02 注入优先、C02b 投影兜底、C04b id 对齐才采信、C25 inject 声明、
+  C26/C27 文案去歧义、C28 破甲会话恒开）。
+- `node --check index.js / client.js` 均 0。
+
+### 影响面 / 不回归
+- 宿主侧注入逻辑**未改**：段仍是 `text:(context)=>…` 按会话裁剪，
+  这场关掉注入的是空串（B03 断言仍在），别的对话本来就拿不到这一段。
+  本版修的是**「开关状态显示」与「开关落在哪一场」**，不是注入语义。
+- 提示词 `prompts/variants/b37-lite.md` 逐字节未改（22,113 B，SHA256 前缀 `B4B8363E3FF3C90A`）。
+
+### 升级
+```powershell
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.54
+```
+（面板里粘地址必须带新 tag，否则会撞宿主的 `already-installed` / `ambiguous-install` 两道门。）
 ## 0.5.53 — 2026-10-24 · install-path & normalize
 
 ### 一、插件面板「无法从依赖变更中确定安装了哪一个包」的根因与修法

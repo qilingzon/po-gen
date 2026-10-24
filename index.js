@@ -33,7 +33,7 @@ const PROMPT_TEXT = readFileSync(
 );
 
 // 0.5.0 实现修订号：部署验收要求三处副本与该值逐字相等，否则视为"装了旧件"。
-const IMPLEMENTATION_REVISION = "20261024-gen553-norm-1";
+const IMPLEMENTATION_REVISION = "20261024-gen554-sessionid-1";
 const PROMPT_SET_HASH = createHash("sha256").update(PROMPT_TEXT).digest("hex");
 // GEN5_NORMALIZE: 前置归一化通道开关（A/B 对照时用 0）；GEN5_NORMALIZE_DRYRUN=1 只记录不改写。
 const NORMALIZE_ON = process.env.GEN5_NORMALIZE !== "0";
@@ -827,7 +827,7 @@ function registerPromptSection(ctx, config, presetInstance) {
 
 // 会话投影：客户端 useProjection("armor") 读状态；0.5.5 起 state 带上 sessionId，
 // 面板据此知道「本对话」是哪一场。两个实例都可能注册，重名由先注册者生效（其余记日志跳过）。
-function registerArmorProjection(ctx) {
+function registerArmorProjection(ctx, config) {
   try {
     const projections = ctx.get("sessionProjections");
     if (projections === undefined || typeof projections.register !== "function") return;
@@ -835,7 +835,19 @@ function registerArmorProjection(ctx) {
       key: "armor",
       stateVersion: 2,
       schema: { parse: (value) => value },
-      view: (state) => ({ ...state, mode: "armor" }),
+      // 0.5.54：把「这场对话到底注不注入」的判定搬到宿主侧。
+      // 客户端以前靠 armor.sessionId + 全量 sessions 表自己推，一旦拿到的 id 不是当前这场，
+      // 面板就会把别的对话的开关状态显示成本对话的状态（用户看到的「别的对话也开了破甲」）。
+      // view 在每次读取投影时执行，读的是 mtime 缓存的设置文件，因此这里拿到的永远是当前真值。
+      view: (state) => ({
+        ...state,
+        mode: "armor",
+        sessionId: String((state && state.sessionId) || ""),
+        override: readSessionOverride(state && state.sessionId) || "auto",
+        // 这里只给「基线」（跟随设置时是否注入）；会话是不是破甲会话只有客户端知道，
+        // 客户端会按 isArmor 再或一次，所以不要在这边算成最终值。
+        enabled: baseEnabled(config, false),
+      }),
       init: (header) => ({
         running: false,
         verdict: null,
@@ -881,7 +893,7 @@ export function apply(ctx, config) {
   ctx.effect(() => () => disposePrompt(), "infinite-gen-4: session prompt");
 
   // 会话投影也常驻：客户端要从中拿当前会话 id，才能在面板上切「本对话」。
-  registerArmorProjection(ctx);
+  registerArmorProjection(ctx, config);
 
   // 谁负责注入：局部（默认）由预设实例注入；全局由常驻实例注入——两者互斥，避免双份提示词。
   // 0.5.5：常驻实例在 local 下只要有人被按对话打开过，也要激活（工具/钩子要有），

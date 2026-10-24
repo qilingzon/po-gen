@@ -1,5 +1,5 @@
 ﻿
-# install.ps1 — 安装 / 更新 / 回滚 dsh-infinite-gen-4（无限四代）
+# install.ps1 — 安装 / 更新 / 回滚 dsh-infinite-gen-4（无限5代）
 #
 # 用法：
 #   .\install.ps1                        # 装最新 release
