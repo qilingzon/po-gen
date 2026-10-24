@@ -93,9 +93,14 @@ function normalizeUserTurn(decision) {
 // 因此切换范围是热生效的（无需重启宿主）。
 const SCOPE_VALUES = new Set(["local", "global"]);
 const SCOPE_FILE = join(process.env.DSH_HOME || join(homedir(), ".dsh"), ".dsh-infinite-gen-4.json");
+// 设置文件同时承载两个开关：
+//   scope      local | global —— 谁注入（局部=只有破甲预设 / 全局=所有预设）
+//   showBadge  true | false   —— 非破甲预设是否也显示徽标（只管看得见，不管注不注入）
 let scopeFileCache = { value: undefined, mtimeMs: -1 };
 // 当前生效范围（local | global），由 apply() 每次 refresh 时刷新，供工具/自检回报。
 let activeScope = "local";
+// 非破甲预设是否显示徽标（0.5.4 起与 scope 解耦）
+let activeShowBadge = false;
 // scope 路由只注册一次（常驻实例；webServer 可能晚于本插件就绪）。
 let scopeRouteRegistered = false;
 
@@ -108,34 +113,56 @@ function envScope() {
   return normalizeScope(process.env.GEN4_SCOPE);
 }
 
-function readScopeFile() {
+function normalizeFlag(value) {
+  if (value === true || value === "true" || value === 1 || value === "1") return true;
+  if (value === false || value === "false" || value === 0 || value === "0") return false;
+  return undefined;
+}
+
+function readSettingsFile() {
   try {
     const st = statSync(SCOPE_FILE);
     if (st.mtimeMs === scopeFileCache.mtimeMs) return scopeFileCache.value;
     const raw = JSON.parse(readFileSync(SCOPE_FILE, "utf8"));
-    const v = normalizeScope(raw && raw.scope);
-    scopeFileCache = { value: v, mtimeMs: st.mtimeMs };
-    return v;
+    const value = { scope: normalizeScope(raw && raw.scope), showBadge: normalizeFlag(raw && raw.showBadge) };
+    scopeFileCache = { value, mtimeMs: st.mtimeMs };
+    return value;
   } catch {
     scopeFileCache = { value: undefined, mtimeMs: -1 };
     return undefined;
   }
 }
 
-function writeScopeFile(scope) {
+function readScopeFile() {
+  const v = readSettingsFile();
+  return v ? v.scope : undefined;
+}
+
+// 合并写入：只改传进来的字段，其余保留（徽标面板与 scope.ps1 可能交替写）。
+function writeSettingsFile(patch) {
   try {
+    const cur = readSettingsFile() || {};
+    const next = { scope: patch.scope || cur.scope || "local" };
+    const badge = patch.showBadge !== undefined ? patch.showBadge : cur.showBadge;
+    if (badge !== undefined) next.showBadge = badge;
+    next.updatedAt = new Date().toISOString();
+    next.by = patch.by || "badge";
     mkdirSync(join(SCOPE_FILE, ".."), { recursive: true });
-    writeFileSync(
-      SCOPE_FILE,
-      JSON.stringify({ scope, updatedAt: new Date().toISOString(), by: "badge" }, null, 2) + "\n",
-      "utf8",
-    );
-    scopeFileCache = { value: scope, mtimeMs: statSync(SCOPE_FILE).mtimeMs };
+    writeFileSync(SCOPE_FILE, JSON.stringify(next, null, 2) + "\n", "utf8");
+    scopeFileCache = {
+      value: { scope: normalizeScope(next.scope), showBadge: normalizeFlag(next.showBadge) },
+      mtimeMs: statSync(SCOPE_FILE).mtimeMs,
+    };
     return true;
   } catch (error) {
     console.error("[dsh-infinite-gen-4] 写设置文件失败:", error);
     return false;
   }
+}
+
+// 兼容旧调用点：只写 scope。
+function writeScopeFile(scope) {
+  return writeSettingsFile({ scope });
 }
 
 function resolveScope(config) {
@@ -145,6 +172,17 @@ function resolveScope(config) {
     readScopeFile() ||
     "local"
   );
+}
+
+// 非破甲预设是否显示徽标：环境变量 > 行配置 > 设置文件 > 跟随 scope（全局时可见）。
+function resolveShowBadge(config) {
+  const env = normalizeFlag(process.env.GEN4_SHOW_BADGE);
+  if (env !== undefined) return env;
+  const cfg = normalizeFlag(config !== null && typeof config === "object" ? config.showBadge : undefined);
+  if (cfg !== undefined) return cfg;
+  const file = readSettingsFile();
+  if (file && file.showBadge !== undefined) return file.showBadge;
+  return resolveScope(config) === "global";
 }
 
 // ---- 破甲模式 = 一个 agent preset（2026-10-19 定案） ----
@@ -543,7 +581,9 @@ function registerScopeRoute(ctx, config) {
       {
         ok: true,
         scope: resolveScope(config),
+        showBadge: resolveShowBadge(config),
         envOverride: envScope() || null,
+        showBadgeEnvOverride: normalizeFlag(process.env.GEN4_SHOW_BADGE) === undefined ? null : normalizeFlag(process.env.GEN4_SHOW_BADGE),
         file: SCOPE_FILE,
         version: PKG_VERSION,
       },
@@ -578,22 +618,36 @@ function registerScopeRoute(ctx, config) {
         if (body.length > 4096) req.destroy();
       });
       req.on("end", () => {
-        let wanted;
+        let parsed = {};
         try {
-          const parsed = JSON.parse(body || "{}");
-          wanted = normalizeScope(parsed && parsed.scope);
+          parsed = JSON.parse(body || "{}") || {};
         } catch {
-          wanted = undefined;
+          parsed = {};
         }
-        if (!wanted) {
-          send(res, 400, { ok: false, error: "scope" });
+        const wantedScope = normalizeScope(parsed.scope);
+        const hasScopeField = parsed.scope !== undefined;
+        const wantedBadge = normalizeFlag(parsed.showBadge);
+        const hasBadgeField = parsed.showBadge !== undefined;
+        if ((hasScopeField && wantedScope === undefined) || (hasBadgeField && wantedBadge === undefined)) {
+          send(res, 400, { ok: false, error: hasScopeField && wantedScope === undefined ? "scope" : "showBadge" });
           return;
         }
-        if (envScope()) {
+        if (!hasScopeField && !hasBadgeField) {
+          send(res, 400, { ok: false, error: "empty" });
+          return;
+        }
+        if (hasScopeField && envScope()) {
           send(res, 409, state({ ok: false, error: "env-override" }));
           return;
         }
-        const ok = writeScopeFile(wanted);
+        if (hasBadgeField && normalizeFlag(process.env.GEN4_SHOW_BADGE) !== undefined) {
+          send(res, 409, state({ ok: false, error: "env-override-badge" }));
+          return;
+        }
+        const patch = { by: "badge" };
+        if (hasScopeField) patch.scope = wantedScope;
+        if (hasBadgeField) patch.showBadge = wantedBadge;
+        const ok = writeSettingsFile(patch);
         send(res, ok ? 200 : 500, state({ ok }));
       });
     } catch (error) {
@@ -635,6 +689,7 @@ export function apply(ctx, config) {
   const shouldActivate = () => {
     const scope = resolveScope(config);
     activeScope = scope;
+    activeShowBadge = resolveShowBadge(config);
     return presetInstance ? scope !== "global" : scope === "global";
   };
 
@@ -715,6 +770,7 @@ function activate(ctx, config) {
       add("variant", VARIANT.length > 0, VARIANT);
       add("normalize-enabled", true, NORMALIZE_ON ? "on" : "off");
       add("scope", SCOPE_VALUES.has(activeScope), activeScope + (envScope() ? " (env override)" : ""));
+  add("showBadge", typeof activeShowBadge === "boolean", String(activeShowBadge));
       let csv = null;
       try {
         for (const name of ["results_ab.csv", "results.csv"]) {
