@@ -328,8 +328,12 @@ window.__ModuleLoader__.load({
         });
       }
 
-      // 本对话开关：开 → 显式 on；关 → 显式 off；有过覆盖时可一键回到「跟随设置」。
+      // 本对话开关：开 → 显式 on；关 → 显式 off；与默认一致时自动清成 auto。
       function commitSession(next) {
+        // 0.5.58：选出来的结果若与「跟随总开关」完全一致，就不写条目——省掉手动「恢复默认」。
+        // 总开关开着还点开、关着还点关，等于没改，直接清掉这一场。
+        if (next === "on" && global) next = "auto";
+        if (next === "off" && !global) next = "auto";
         if (!sessionKnown) {
           setNote("这场对话还没有会话 id，稍后再试");
           setTimeout(function () { setNote(""); }, 4000);
@@ -375,23 +379,6 @@ window.__ModuleLoader__.load({
               style: switchStyle(sessionOn),
               onClick: function () { commitSession(sessionOn ? "off" : "on"); }
             }, react.createElement("span", { style: knobStyle(sessionOn) })),
-            myOverride
-              ? react.createElement("button", {
-                type: "button",
-                "data-gen4-session-reset": "1",
-                title: "清除这一场的单独设置，恢复按上面的总开关",
-                onClick: function () { commitSession("auto"); },
-                style: {
-                  flex: "none",
-                  background: "transparent",
-                  border: "none",
-                  color: "#93c5fd",
-                  fontSize: "11px",
-                  padding: "0",
-                  cursor: "pointer"
-                }
-              }, "恢复默认")
-              : null
           )
         ));
       }

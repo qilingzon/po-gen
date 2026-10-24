@@ -1,28 +1,30 @@
-# RELEASE NOTES · dsh-infinite-gen-4 v0.5.57-lab-20261024
+# RELEASE NOTES · dsh-infinite-gen-4 v0.5.58-lab-20261024
 
 > 由 `node .diag/build_release.js` 生成；逐文件 SHA256 见同目录 `MANIFEST.json`。
 > 源目录：`D:\deepseek\armor-lab\gen4_home\plugins\dsh-infinite-gen-4`（lab 规范源）。**发布件不含 `*.bak*` / `.REJECTED.md` / node_modules。**
 
-## 0. 本版变更（0.5.57）
+## 0. 本版变更（0.5.58）
 
-**一句话**：破甲模式里不再有「启用/暂停破甲」这一行——本来就是破甲，没什么可问的。
+**一句话**：面板里删掉「恢复默认」按钮，改由代码自动收尾。
 
-### 为什么
-「本对话暂停破甲」是动作、「默认：破甲运行中」是状态，一行两种话术，读着就自相矛盾；
-功能上也不该有：要普通咨询，切预设或关总开关即可。
+### 它原来是什么意思（回答提问）
+「恢复默认」= 删掉这一场在设置文件里的条目，回到「按上面的总开关走」。
+用户只关心这一场开没开，看不见也不该管设置文件，所以**没必要**。
 
 ### 修法
-- 破甲模式：整行不渲染，面板只剩「其他模式显示徽标」。
-- 普通模式：这一行仍是「仅本对话启用」（已打开/已关闭/跟随上面的设置），清覆盖按钮叫「恢复默认」。
-- 删掉只为破甲模式服务的那套「暂停反转」语义。
+- 删除按钮（`data-gen4-session-reset` 整块），面板不再出现「跟随」「恢复默认」。
+- `commitSession` 自动收尾：结果与默认一致时不写条目——
+  总开关开着又点开 → 存 `auto`；总开关关着又点关 → 存 `auto`。
+- 需要手动清：`tools\scope.ps1 session <id> auto`。
 
 ### 证据
-- 客户端静态断言 **38/38**、契约 **29/29**、徽标点击回归 **9/9**；`node --check` = 0。
+- 客户端静态断言 **38/38**（C08 断言按钮已不存在、C35/C36 验证两条自动收尾分支）；
+  契约 **29/29**、toggle **9/9**；`node --check` = 0。
 - 提示词逐字节未改（`b37-lite.md` 22,113 B）。
 
 ### 升级
 ```powershell
-dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.57
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.58
 ```
 装完必须重启桌面端。
 > 说明：§1–§4 由 build_release.js 模板继承，其中变体交付率与电池数字截至 0.4.2–0.4.10，属**历史数据**。
@@ -66,7 +68,7 @@ dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.57
 ## 4. 校验方式
 
 ```powershell
-pwsh -File .diag\verify_release.ps1 -Version v0.5.57-lab-20261024      # 发布件 == lab 源 == 两份生效副本
+pwsh -File .diag\verify_release.ps1 -Version v0.5.58-lab-20261024      # 发布件 == lab 源 == 两份生效副本
 node .diag\verify_regression.js                          # 判据金标
 node .diag\selftest.js                                   # 12 项
 pwsh -File .diag\overnight_verify.ps1                     # 一条命令全绿
