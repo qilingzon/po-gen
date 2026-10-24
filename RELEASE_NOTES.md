@@ -1,61 +1,77 @@
-# RELEASE NOTES · dsh-infinite-gen-4 v0.5.51-lab-20261024
+# RELEASE NOTES · dsh-infinite-gen-4 v0.5.52-lab-20261024
 
 > 由 `node .diag/build_release.js` 生成；逐文件 SHA256 见同目录 `MANIFEST.json`。
 > 源目录：`D:\deepseek\armor-lab\gen4_home\plugins\dsh-infinite-gen-4`（lab 规范源）。**发布件不含 `*.bak*` / `.REJECTED.md` / node_modules。**
 
-## 0. 本版变更（0.5.51 · 徽标开关修复 + 改名无限5代）
+## 0. 本版变更（0.5.52 · 适配 DSH 0.2.1-rc.3，补齐宿主版本契约）
 
-> 0.5.5 → 0.5.51 是**交互修复版**：提示词一字未改（`prompts/variants/b37-lite.md` 22,112 B，
-> sha256 前缀 `ECFE1D00`），交付能力与 0.5.5 完全相同。
+> 0.5.51 → 0.5.52 是**兼容性版本**：提示词（`prompts/variants/b37-lite.md` 22,113 B，sha256 前缀
+> `B4B8363E`）与运行期代码（`index.js` 49,866 B、`client.js` 17,687 B）**逐字节未改**，
+> 交付能力与 0.5.51 完全相同。改的只有「告诉宿主自己能跑在哪」以及配套文档。
 
-### 修的是什么
+### 1. 根因：插件此前没有声明宿主版本
 
-点徽标打开设置面板后，再点一次关不掉——只能开不能关。
+`package.json` 的 `engines` 只有 `node`，没有 `dsh`，也没有 `@deepseek-ai/dsh` 的
+`peerDependencies`。宿主的判据在 `dsh-app-boot` 的 `unmetRequirements`：
 
-根因不是状态写错，是**事件顺序**：「点面板外面就收起」这条监听挂在 document 的 `mousedown`
-捕获阶段，点徽标本身也会先走 `mousedown`：mousedown → 面板关闭 → 随后 `click` 的
-`setOpen(!open)` 读到的是**已经翻过的旧值**，于是又把面板打开。两次事件互相抵消，净效果永远是"开着"。
+- 有 `engines.dsh` → **只**看它；
+- 没有 → 逐个校验 `@deepseek-ai/dsh` / `@deepseek-ai/dsh-*` 的 peer 区间。
 
-修复只有一行判定：close 时同时放过 `[data-armor]`（徽标自身），把开关权交回徽标的 `click`。
-点面板外面关闭、Esc/键盘可达这些行为全部保留。
+两者都没有就等于**完全不检查**：既不会在 rc.3 上拦住你，也不会在将来某个改坏 API 的版本上拦住你。
+这一版把契约补上：
 
-### 证据（可复跑）
-
-`.diag/session055/toggle_051.mjs` 用极简 React 打桩，真跑 `client.js` 里的组件（不是字符串断言）：
-
-| 被测文件 | 结果 |
-|---|---|
-| 0.5.51 新版 `client.js` | **9 PASS / 0 FAIL** |
-| 0.5.5 旧版 `client.js` | **5 PASS / 4 FAIL**（点徽标误关、再点关不掉、第二次复现不了、文案仍是无限四代） |
-
-同一套 9 条断言跑新旧两版，差异就是这一处修复。另有非回归：假宿主契约 **25/25**、
-客户端静态断言 **24/24**、空 `DSH_HOME` 里 `install.ps1 -LocalZip` 装出 **v0.5.51**
-（`INSTALL-OK`，两处回读 `0.5.51` / `index.js 0cf849693f4c`）。
-
-### 顺带改的两件事
-
-1. **显示名「无限四代」→「无限5代」**：徽标文案、`package.json` 的 `dsh.name`、README 与
-   HARNESS_PLUGIN 文档。包名 `dsh-infinite-gen-4` 与 `dsh.id` 不动，既有依赖与设置文件名不受影响。
-2. **安装脚本 UTF-8 安全**：`install.ps1` / `uninstall.ps1` / `tools/scope.ps1` 新增
-   `Read-Json`（显式 UTF-8 解码），并给 `.ps1` 加 BOM。以前 `package.json` 里只要有中文，
-   `Get-Content -Raw | ConvertFrom-Json` 在部分环境就会解成乱码并报错。
-
-### 升级方式
-
-```powershell
-# 粘仓库地址（跟随 master 最新）
-dsh plugin --profile desktop add https://github.com/qilingzon/po-gen
-
-# 或钉版本
-dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.51
+```json
+"engines": { "node": ">=20", "dsh": ">=0.2.1-rc.2 <0.4.0" }
 ```
 
-装完重启客户端；徽标应显示「破甲已开启 · 无限5代」，点一下开面板、再点一下收起。
+下限 `0.2.1-rc.2` = 实现实测过的最早一版；上限 `<0.4.0` 给 0.2.x 正式版与 0.3.x 留空间，
+0.4.0 起必须重新验证后才放宽。宿主判定时预发布版也参与区间比较，所以 rc.3 落在区间内。
 
-### 回滚
+### 2. rc.3 实测：接口面无破坏性变更
 
-装回 `v0.5.5`（`dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.5`）即可；
-本版未改包名、段名、工具、通道与设置文件格式。
+按 0.2.1-rc.3 重装宿主包后逐文件比对（`.diag\compat053\`）：`dsh-system-prompt`、
+`dsh-session-projection`、`dsh-tools`、`dsh-plugin-manager`、`dsh-base` 的 `lib/*.js` 与 rc.2
+**逐字节相同**；唯一变化的 `dsh-client-ui-plugin-manager/lib/client.js` 差 198 B，内容是
+CSS module 类名哈希与构建路径字符串。插件依赖的三条通道（提示段 `text(context)` 按会话求值、
+会话投影 `stateVersion=2` 带 `sessionId`、`tools.register` 的 `execute(args, exec)`）全部在
+未变化的那批包里。
+
+rc.3 上的实际跑通证据（全部可回读）：
+
+| 检查 | 结果 |
+|---|---|
+| profile 内装载 | `dsh plugin --profile rc3 add 'file:…'` 成功；补装宿主栈后从 pending 转为加载，无 `ERR_MODULE_NOT_FOUND` |
+| 原生 headless | `gen5_verify` 返回 `verdict=OK`、9 项 checks 全过、自报 `version=0.5.52` |
+| 工具层 | `delivery_profile` 正常返回模板库 |
+| 系统提示 | 注入 b37-lite 全文（18,931 字符） |
+| 归一化 | `normalize.enabled=true`，本轮 `steps=1 changed=0`（无实体需改写，属正常） |
+
+日志：`.diag\compat053\smoke_rc3_native.txt` / `.err.txt`，结论摘要
+`.diag\compat053\smoke_rc3_verdict.md`。
+
+### 3. 新增 `docs/COMPATIBILITY.md`
+
+写明三件事：`engines.dsh` 区间与由来、rc.3 的字节对比与冒烟结论、**跨版本混装**的已知限制——
+用 rc.3 的 CLI 去跑由 rc.2 物化出来的 profile，宿主会把 row 级插件逐条禁用并报
+`is incompatible with dsh 0.2.1-rc.3`，插件停在 `pending (waiting for services: tools, systemPrompt)`。
+这不是插件缺陷：同一 profile 的宿主包必须与 CLI 同版本，升级客户端后应让 profile 重新物化。
+
+### 4. 升级与回滚
+
+- 升级：装 `v0.5.52`（`https://github.com/qilingzon/po-gen` 不带 tag，或带 `#v0.5.52`）；
+  桌面端 0.2.1-rc.2 与 rc.3 都在 `engines.dsh` 区间内，**无需先升宿主**。
+- 回滚：`install.ps1 -Restore`（`-ListBackups` 列出备份点），或装回 `#v0.5.51`。
+  本版未改包名、`dsh.id`、段名（`infinite-gen-4:global-system-prompt`）、工具名或设置文件格式；
+  宿主若回退到 rc.2，0.5.52 仍满足 `engines.dsh`，不需要回滚。
+
+### 5. 非回归（同一套断言重跑）
+
+| 层 | 结果 |
+|---|---|
+| 契约（`harness.mjs`，路由/段文本/钩子） | 25/25 PASS |
+| 客户端静态（`client_static.mjs`，徽标与面板） | 24/24 PASS |
+| 徽标开关（`toggle_051.mjs`） | 9/9 PASS |
+| 安装实证（空 `DSH_HOME` + `install.ps1 -LocalZip`） | `INSTALL-OK v0.5.52`，两处回读一致（`0.5.52` / `index.js 0cf849693f4c`） |
 > 说明：§1–§4 由 build_release.js 模板继承，其中变体交付率与电池数字截至 0.4.2–0.4.10，属**历史数据**。
 
 ## 1. 这一版的关键事实（都可复跑核验）
@@ -97,7 +113,7 @@ dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.51
 ## 4. 校验方式
 
 ```powershell
-pwsh -File .diag\verify_release.ps1 -Version v0.5.5-lab-20261024      # 发布件 == lab 源 == 两份生效副本
+pwsh -File .diag\verify_release.ps1 -Version v0.5.52-lab-20261024      # 发布件 == lab 源 == 两份生效副本
 node .diag\verify_regression.js                          # 判据金标
 node .diag\selftest.js                                   # 12 项
 pwsh -File .diag\overnight_verify.ps1                     # 一条命令全绿

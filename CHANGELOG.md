@@ -1,3 +1,50 @@
+## 0.5.52 — 2026-10-24 · compatibility
+
+### 适配 DSH 0.2.1-rc.3：声明宿主版本区间
+
+插件此前没有声明自己能跑在哪个 DSH 上——`engines` 只有 `node`，没有 `dsh`，也没有
+`@deepseek-ai/dsh` 的 peerDependencies。宿主因此**完全不检查**：既不会在 rc.3 上拦住你，
+也不会在将来某个改坏 API 的版本上拦住你。这一版把契约补齐：
+
+```json
+"engines": { "node": ">=20", "dsh": ">=0.2.1-rc.2 <0.4.0" }
+```
+
+宿主判定规则（`dsh-app-boot` 的 `unmetRequirements`，原文）：有 `engines.dsh` 就**只**看它，
+否则逐个校验 `@deepseek-ai/dsh` / `@deepseek-ai/dsh-*` 的 peer 区间；预发布版也参与区间比较。
+不满足时插件管理会拦下并给出 `incompatible-version`，而不是让你在崩溃后才发现。
+
+区间为什么是这两头：`>=0.2.1-rc.2` 是实测过的第一版（rc.2 与 rc.3 的核心运行时逐字节相同，
+见下），`<0.4.0` 给 0.2.x 正式版与 0.3.x 留出空间；0.4.0 起必须重新验证后才会放行。
+
+### rc.3 实测：三个接口面全通
+
+宿主包按 0.2.1-rc.3 重装比对（`.diag\compat053\`）：`dsh-system-prompt`、`dsh-session-projection`、
+`dsh-tools`、`dsh-plugin-manager`、`dsh-base` 的 `lib/*.js` 与 rc.2 **逐字节相同**；唯一变化的
+`dsh-client-ui-plugin-manager/lib/client.js` 差 198 B，内容是 CSS module 类名哈希与构建路径字符串，
+功能无差异。插件依赖的正是前者（提示段 `text(context)` 求值、投影 `stateVersion=2`、
+`tools.register` + `execute(args, exec)`），所以接口面无破坏性变更。
+
+真机跑过：用 `@deepseek-ai/dsh@0.2.1-rc.3` 的 CLI + `gen4-hl` profile（`file:` 安装本插件）+
+`patch_rc3_armor.yml`（r4 / deepseek-v4.1-flash / max + `mode: armor`）headless 单轮，
+插件正常装载、无 `ERR_MODULE_NOT_FOUND`，`gen5_verify` 与 `delivery_profile` 都返回结构化结果。
+
+### 兼容性判定的实测矩阵
+
+用 rc.3 自己的 `evaluatePluginCompatibility` 跑四种声明 × 六种宿主版本：
+
+| 声明 | rc.1 | rc.2 | rc.3 | 0.2.1 | 0.3.0 | 0.2.0 |
+|---|---|---|---|---|---|---|
+| 不声明（0.5.51） | PASS | PASS | PASS | PASS | PASS | PASS |
+| `engines.dsh >=0.2.1-rc.2 <0.4.0` | BLOCK | PASS | PASS | PASS | PASS | BLOCK |
+
+不声明那一行「全 PASS」正是问题：装在 0.1.x 上也照收。本版起，低于 rc.2 的宿主会被明确拦下。
+
+### 不变的部分
+
+包名、`dsh.id`、段名 `infinite-gen-4:global-system-prompt`、工具名、路由、设置文件格式、提示词
+（`b37-lite.md` 22,112 B）全部未改；这是纯元数据兼容性补充，交付能力与 0.5.51 相同。
+
 ## 0.5.51 — 2026-10-24 · fix
 
 ### 修复：徽标点两次关不掉
