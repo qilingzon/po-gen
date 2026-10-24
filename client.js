@@ -1,9 +1,9 @@
-/* 无限四代 (dsh-infinite-gen-4) client half — realtime "破甲已开启" badge.
+/* 无限5代 (dsh-infinite-gen-4) client half — realtime "破甲已开启" badge.
  * Reads the host "armor" session projection via useProjection:
  *   user message -> breathing pulse "思考中…"
  *   assistant message -> ✓ 通过 (green flash) | ◐ 未完交付 (yellow flash)
  *                        | ✗ <拒绝词> (red flash)
- * 0.5.4：徽标点击 = 打开设置面板（不再是直接切换）。
+ * 0.5.4：徽标点击 = 打开设置面板。0.5.51：再点一次收起（切换）。
  *   破甲模式：只有「其他模式显示徽标」一项（只管看得见）。
  *   其他模式：多一项「启用破甲」（= 是否给其他模式注入）；不开就不污染其他模式。
  *   设置走宿主 HTTP 路由 /gen4/scope：GET 读、POST 写（scope / showBadge 可单独写）。
@@ -206,7 +206,7 @@ window.__ModuleLoader__.load({
         if (!open) return undefined;
         var close = function (event) {
           var el = event && event.target;
-          if (el && el.closest && el.closest("[data-gen4-panel]")) return;
+          if (el && el.closest && (el.closest("[data-gen4-panel]") || el.closest("[data-armor]"))) return;
           setOpen(false);
         };
         document.addEventListener("mousedown", close, true);
@@ -244,7 +244,7 @@ window.__ModuleLoader__.load({
         Date.now() < flashUntilRef.current;
 
       var text = isArmor
-        ? (sessionOn ? "破甲已开启 · 无限四代" : "破甲已停用 · 本对话")
+        ? (sessionOn ? "破甲已开启 · 无限5代" : "破甲已停用 · 本对话")
         : (sessionOn
           ? (global && myOverride !== "on" ? "破甲已开启 · 全部模式" : "破甲已开启 · 本对话")
           : "破甲未启用 · 点击开启");

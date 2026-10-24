@@ -1,9 +1,9 @@
-# 无限四代 · dsh-infinite-gen-4
+# 无限5代 · dsh-infinite-gen-4
 
 > DeepSeek Harness 插件：把「破甲模式」注册成一个**可选的 agent preset**。
 > 只有你显式选中它的会话才会注入交付引擎提示词；其他会话、其他模式**零注入**。
 
-[![version](https://img.shields.io/badge/version-0.5.5-2f6feb)](https://github.com/qilingzon/po-gen/releases)
+[![version](https://img.shields.io/badge/version-0.5.51-2f6feb)](https://github.com/qilingzon/po-gen/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-555)]
 
@@ -25,7 +25,7 @@
 
 **边界（重要）**：默认（`local` 范围）下，未选中「破甲模式」的会话里，本插件不写系统提示、
 不挂工具、不渲染状态条，不会污染 `standard` 或其他预设的正常对话。可在会话头部看徽标：
-绿色「破甲已开启 · 无限四代」= 当前会话正在使用它。
+绿色「破甲已开启 · 无限5代」= 当前会话正在使用它。
 
 想让所有模式都启用？**点一下徽标**即可切成全局，徽标变成 `破甲已开启 · 全部模式`；
 再点一下切回只给破甲模式。切换热生效，不需要重启（详见下文「启用范围」）。
@@ -70,12 +70,12 @@ irm https://raw.githubusercontent.com/qilingzon/po-gen/main/install.ps1 -OutFile
 
 ```powershell
 # 指定版本 / 只预览不落盘 / 指定 profile
-& "$env:TEMP\gen4-install.ps1" -Version 0.5.5 -DryRun
+& "$env:TEMP\gen4-install.ps1" -Version 0.5.51 -DryRun
 & "$env:TEMP\gen4-install.ps1" -Profile desktop
 ```
 
 > macOS / Linux：`curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/main/install.sh -o /tmp/gen4-install.sh && bash /tmp/gen4-install.sh`
-> （参数同理直接加在后面：`bash /tmp/gen4-install.sh -v 0.5.5 -n`）
+> （参数同理直接加在后面：`bash /tmp/gen4-install.sh -v 0.5.51 -n`）
 
 ### 方式 B：走 DSH 自己的插件管理器（等价的「正规军」路线）
 
@@ -83,18 +83,18 @@ irm https://raw.githubusercontent.com/qilingzon/po-gen/main/install.ps1 -OutFile
 
 ```bash
 # 先退出桌面端，再在终端里执行
-dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.5
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.51
 dsh plugin --profile desktop why dsh-infinite-gen-4   # 确认已入依赖树
 ```
 
-它由 pnpm 管理版本、写进 `profiles/desktop/package.json`，升级时把 `#v0.5.5` 换成新 tag 即可。
+它由 pnpm 管理版本、写进 `profiles/desktop/package.json`，升级时把 `#v0.5.51` 换成新 tag 即可。
 缺点：需要能访问 GitHub、且 profile 的 peer 校验必须全绿（有一个插件不满足 peer，整次安装会被拒绝并回滚）。
 
 ### 方式 C：手动装 zip（完全离线）
 
 1. 到 [Releases](https://github.com/qilingzon/po-gen/releases) 下载
    `dsh-infinite-gen-4-<版本>.zip` 与 `SHA256SUMS.txt`；
-2. 校验：`certutil -hashfile dsh-infinite-gen-4-0.5.5.zip SHA256`（macOS：`shasum -a 256`）；
+2. 校验：`certutil -hashfile dsh-infinite-gen-4-0.5.51.zip SHA256`（macOS：`shasum -a 256`）；
 3. 解压后把整个 `dsh-infinite-gen-4` 目录复制到这三处（已存在就覆盖）：
    - `$DSH_HOME\plugins\dsh-infinite-gen-4`
    - `$DSH_HOME\node_modules\dsh-infinite-gen-4`
@@ -104,12 +104,12 @@ dsh plugin --profile desktop why dsh-infinite-gen-4   # 确认已入依赖树
 ## 验证装没装上
 
 ```powershell
-# 三条都应输出 0.5.5
+# 三条都应输出 0.5.51
 Get-Content "$env:USERPROFILE\.dsh\plugins\dsh-infinite-gen-4\package.json" | Select-String '"version"'
 ```
 
 更直观的验证：打开桌面端 → 新建会话 → Agent 预设里能看到 **破甲模式**；
-选中后会话头部出现绿色「破甲已开启 · 无限四代」徽标，即生效。
+选中后会话头部出现绿色「破甲已开启 · 无限5代」徽标，即生效。
 
 ---
 
@@ -129,7 +129,7 @@ irm https://raw.githubusercontent.com/qilingzon/po-gen/main/install.ps1 -OutFile
 
 ```bash
 dsh plugin --profile desktop remove dsh-infinite-gen-4
-dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.5
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.51
 ```
 
 ## 回滚
@@ -166,7 +166,7 @@ curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/main/uninstall.sh 
 
 1. 重启 DeepSeek Harness；
 2. 新建会话，在顶部把 **Agent 预设** 切到「破甲模式」；
-3. 看头部徽标：绿色 `破甲已开启 · 无限四代` = 生效。没有徽标就是没选中，不是没装上。
+3. 看头部徽标：绿色 `破甲已开启 · 无限5代` = 生效。没有徽标就是没选中，不是没装上。
 
 > 若你的默认预设不是它，每次新建会话都要手动选一次；老会话保持创建时选的预设，不会自动切换。
 
@@ -198,7 +198,7 @@ curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/main/uninstall.sh 
 
 | 状态 | 徽标 |
 |---|---|
-| 破甲模式（已注入） | `破甲已开启 · 无限四代` |
+| 破甲模式（已注入） | `破甲已开启 · 无限5代` |
 | 破甲模式，本场被单独关掉 | `破甲已停用 · 本对话` |
 | 其他模式，已全局注入 | `破甲已开启 · 全部模式` |
 | 其他模式，仅这一场被打开 | `破甲已开启 · 本对话` |

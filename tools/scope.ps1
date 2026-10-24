@@ -1,4 +1,5 @@
-﻿# 无限四代 · 破甲设置（命令行等价物）
+﻿
+# 无限四代 · 破甲设置（命令行等价物）
 #
 # 徽标点击 = 本脚本的图形版：设置写在 <DSH_HOME>\.dsh-infinite-gen-4.json，
 # 插件两个实例都轮询该文件，改完热生效（无需重启宿主）。
@@ -38,6 +39,14 @@ param(
   [string]$DshHome = $env:DSH_HOME
 )
 
+# 0.5.51：显式 UTF-8 读 JSON。Windows PowerShell 5.1 的 Get-Content -Raw 按 ANSI 解码，
+# package.json 里只要出现中文（如 dsh.name「无限5代」）ConvertFrom-Json 就会失败。
+function Read-Json([string]$path) {
+  if (-not (Test-Path $path)) { return $null }
+  $text = [IO.File]::ReadAllText($path, [Text.UTF8Encoding]::new($false))
+  return ($text | ConvertFrom-Json)
+}
+
 $ErrorActionPreference = 'Stop'
 
 if ([string]::IsNullOrWhiteSpace($DshHome)) {
@@ -47,7 +56,7 @@ $file = Join-Path $DshHome '.dsh-infinite-gen-4.json'
 
 function Read-Settings {
   if (-not (Test-Path $file)) { return $null }
-  try { return (Get-Content $file -Raw | ConvertFrom-Json) } catch { return $null }
+  try { return (Read-Json $file) } catch { return $null }
 }
 
 # 把 sessions 归一化成有序字典（损坏条目直接丢弃，和插件侧 normalizeSessions 同规则）。

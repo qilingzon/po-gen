@@ -1,3 +1,26 @@
+## 0.5.51 — 2026-10-24 · fix
+
+### 修复：徽标点两次关不掉
+
+点一下打开设置面板，再点一下关不掉——表现为"只能开、不能关"。
+
+根因：「点面板外面就收起」这条监听挂在 document 的 mousedown 捕获阶段，而点击徽标本身也先触发
+mousedown。顺序是 mousedown → 关闭面板 → 随后 click → setOpen(!open) 读到旧值再打开，
+净效果永远是"开着"。修复：close 判定同时放过 [data-armor]（徽标自身），由徽标的 click 独占开关。
+
+证据：.diag/session055/toggle_051.mjs（极简 React 打桩，真跑 client.js 组件）
+同一套 9 条断言——旧 0.5.5 client.js **5 PASS / 4 FAIL**（T5 点徽标误关、T6 再点关不掉、T7 复现不了），
+新版 **9 PASS / 0 FAIL**。
+
+### 变更：显示名改「无限5代」
+
+徽标文案、package.json 的 dsh.name、README 与 HARNESS_PLUGIN 文档里的「无限四代」统一成「无限5代」。
+包名仍是 dsh-infinite-gen-4（改名会让已有依赖失效）。
+
+### 不变
+
+提示词一字未改（prompts/variants/b37-lite.md 22,112 B、sha256 前缀 ECFE1D00），
+交付能力与 0.5.5 相同；契约测试 25/25、客户端静态断言 24/24 全过。
 # 更新日志
 
 版本号连续递增，不做跳跃；**一轮迭代只发一版**，本轮全部已完成改动一次进版，不追加「补丁版」（发布标准 v3.0 R1）。

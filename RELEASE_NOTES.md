@@ -1,74 +1,61 @@
-# RELEASE NOTES · dsh-infinite-gen-4 v0.5.5-lab-20261024
+# RELEASE NOTES · dsh-infinite-gen-4 v0.5.51-lab-20261024
 
 > 由 `node .diag/build_release.js` 生成；逐文件 SHA256 见同目录 `MANIFEST.json`。
 > 源目录：`D:\deepseek\armor-lab\gen4_home\plugins\dsh-infinite-gen-4`（lab 规范源）。**发布件不含 `*.bak*` / `.REJECTED.md` / node_modules。**
 
-## 0. 本版变更（0.5.5 · 按对话启用）
+## 0. 本版变更（0.5.51 · 徽标开关修复 + 改名无限5代）
 
-**一句话**：以前「破甲开不开」只有 `scope`（整个 profile）和 `showBadge`（看不看得见）两个旋钮，
-要单独给某一场对话开或关做不到。0.5.5 在设置面板加了一行 **「本对话启用破甲」**，
-让同一 profile 下的 A 会话开、B 会话关，各走各的。
+> 0.5.5 → 0.5.51 是**交互修复版**：提示词一字未改（`prompts/variants/b37-lite.md` 22,112 B，
+> sha256 前缀 `ECFE1D00`），交付能力与 0.5.5 完全相同。
 
-### 0.1 用户问题与判定
+### 修的是什么
 
-| 用户要求 | 0.5.5 的落点 |
+点徽标打开设置面板后，再点一次关不掉——只能开不能关。
+
+根因不是状态写错，是**事件顺序**：「点面板外面就收起」这条监听挂在 document 的 `mousedown`
+捕获阶段，点徽标本身也会先走 `mousedown`：mousedown → 面板关闭 → 随后 `click` 的
+`setOpen(!open)` 读到的是**已经翻过的旧值**，于是又把面板打开。两次事件互相抵消，净效果永远是"开着"。
+
+修复只有一行判定：close 时同时放过 `[data-armor]`（徽标自身），把开关权交回徽标的 `click`。
+点面板外面关闭、Esc/键盘可达这些行为全部保留。
+
+### 证据（可复跑）
+
+`.diag/session055/toggle_051.mjs` 用极简 React 打桩，真跑 `client.js` 里的组件（不是字符串断言）：
+
+| 被测文件 | 结果 |
 |---|---|
-| 面板里能「这场对话开、那场关」 | 设置文件 `sessions` 覆盖表 + 面板开关；三态（开 / 关 / 跟随） |
-| 关掉别影响别人 | 提示词段按会话求值：没打开的会话拿到空串，工具与钩子也按会话放行 |
-| 别污染其他模式 | 默认仍是 `local`；没主动开任何开关时行为与 0.5.4 完全一致 |
-| 关掉之后还能改回来 | 徽标不退场（`myOverride === "on"` 也显示），灰态显示「破甲已停用 · 本对话」 |
+| 0.5.51 新版 `client.js` | **9 PASS / 0 FAIL** |
+| 0.5.5 旧版 `client.js` | **5 PASS / 4 FAIL**（点徽标误关、再点关不掉、第二次复现不了、文案仍是无限四代） |
 
-### 0.2 机制上移：从「注册级」到「求值级」
+同一套 9 条断言跑新旧两版，差异就是这一处修复。另有非回归：假宿主契约 **25/25**、
+客户端静态断言 **24/24**、空 `DSH_HOME` 里 `install.ps1 -LocalZip` 装出 **v0.5.51**
+（`INSTALL-OK`，两处回读 `0.5.51` / `index.js 0cf849693f4c`）。
 
-旧实现的开关只能决定**注册不注册**（段、工具、钩子在激活时二选一），所以一个 profile 只能有一个答案。
-0.5.5 把判断推到**每一轮组装**：
+### 顺带改的两件事
 
-- `dsh-system-prompt` 的 section `text` 允许是函数，每次组装求值 ⇒ 段文本按 `context.agent.session.id` 决定返回全文还是空串；
-- `dsh-session-projection` 的 `init(header)` 拿得到会话 id ⇒ 投影状态带 `sessionId`，客户端才知道「本对话」是谁；
-- `agent/pre-step` 与 `tools/post-execute` 在入口按会话放行 ⇒ 未启用的会话即使工具已注册也拿不到注入。
-- 段名保持 `infinite-gen-4:global-system-prompt`，同名段按作用域遮蔽：破甲预设的会话里，预设实例的段盖住常驻实例的段，不会双注入。
+1. **显示名「无限四代」→「无限5代」**：徽标文案、`package.json` 的 `dsh.name`、README 与
+   HARNESS_PLUGIN 文档。包名 `dsh-infinite-gen-4` 与 `dsh.id` 不动，既有依赖与设置文件名不受影响。
+2. **安装脚本 UTF-8 安全**：`install.ps1` / `uninstall.ps1` / `tools/scope.ps1` 新增
+   `Read-Json`（显式 UTF-8 解码），并给 `.ps1` 加 BOM。以前 `package.json` 里只要有中文，
+   `Get-Content -Raw | ConvertFrom-Json` 在部分环境就会解成乱码并报错。
 
-### 0.3 四层证据（都可复跑）
+### 升级方式
 
-| 层 | 判据 | 结果 |
-|---|---|---|
-| 假宿主契约 | 路由 12 项 + 段文本 11 项 + 钩子 2 项 | **25/25 PASS**（`.diag/session055/harness.mjs`） |
-| 客户端静态 | 面板行、三态副标签、POST 体、四态徽标、入口可见性、Hook 顺序 | **24/24 PASS**（`.diag/session055/client_static.mjs`） |
-| 真机请求头矩阵 | 同一 profile 两场真实会话，看**实际发给模型的工具清单** | **8/8**（`.diag/session055/live_results.csv`） |
-| 命令行等价物 | `scope.ps1 session <id> on|off|auto`、合并写入不丢表 | 实测通过（`.diag/session055/pshome`） |
+```powershell
+# 粘仓库地址（跟随 master 最新）
+dsh plugin --profile desktop add https://github.com/qilingzon/po-gen
 
-真机矩阵的关键三格：
+# 或钉版本
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.51
+```
 
-| 步骤 | 设置 | 期望 | 实际请求头 |
-|---|---|---|---|
-| A 首次创建 | `{}` | 不在框架 | 25 个工具，无插件工具 |
-| A 单独打开 | `{A:on}` | 在框架 | 27 个工具，含 `gen5_verify` + `delivery_profile` |
-| A 默认、B 打开 | `{B:on}` | A 不在框架 | 工具在（全局注册）但 A 调 `gen5_verify` 回报 `enabled:false` |
+装完重启客户端；徽标应显示「破甲已开启 · 无限5代」，点一下开面板、再点一下收起。
 
-第三行是这一版真正的隔离判据：工具因为**别人**在用而注册，A 仍然出局。
+### 回滚
 
-### 0.4 实测中发现的一件事（写进文档，不粉饰）
-
-把一场**已经答过 `NO-TOOL`** 的会话重新打开后，请求头里工具确实已经在了（27 个），
-但 r4 模型三次都照抄上一轮的 `NO-TOOL`，推理原文是
-「My tool list does not include gen5_verify. It's not in the functions list.」。
-
-⇒ 判据不能看模型自述，要看请求头与 `gen5_verify` 自报的 `session` 字段。
-这也解释了历史电池里「工具明明在、模型说没有」的那类格子。
-
-### 0.5 非回归
-
-- 提示词 `prompts/variants/b37-lite.md` **未改**（22,113 B），交付能力与 0.5.4 相同，未重跑 12 题电池。
-- 默认值不变：不写设置文件 = `local` + 无徽标 = 其他模式零注入（0.5.2 起的老基线仍成立）。
-- 设置文件向后兼容：0.5.5 新增的 `sessions` 字段在 0.5.4 里被忽略；0.5.4 写的 `showBadge` 在 0.5.5 里照读。
-- `GEN4_SCOPE` / `GEN4_SHOW_BADGE` 环境变量优先级不变。
-
-### 0.6 回滚
-
-- 插件：`install.ps1 -Restore`（`-ListBackups` 列出）或装回 v0.5.4 zip。
-- 设置：删 `<DSH_HOME>\.dsh-infinite-gen-4.json` 的 `sessions` 条目即回「跟随设置」；整份删除即回默认。
-- 环境污染为零：本版没有改名任何段、工具或通道；卸载即恢复原状。
-
+装回 `v0.5.5`（`dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.5`）即可；
+本版未改包名、段名、工具、通道与设置文件格式。
 > 说明：§1–§4 由 build_release.js 模板继承，其中变体交付率与电池数字截至 0.4.2–0.4.10，属**历史数据**。
 
 ## 1. 这一版的关键事实（都可复跑核验）

@@ -1,6 +1,6 @@
-# DeepSeek Harness Plugin — 无限四代 / dsh-infinite-gen-4
+# DeepSeek Harness Plugin — 无限5代 / dsh-infinite-gen-4
 
-破甲（armor-breaking）插件，项目名：**无限四代（Infinite Generation Four）** v0.4.0。
+破甲（armor-breaking）插件，项目名：**无限5代（Infinite Generation Four）** v0.4.0。
 版本口径：**代际号 = minor**（gen2→0.2.x、gen4→0.4.x，今后 gen5→0.5.x）；
 提示词标记 `STABLE v4` ↔ 包版本 0.4.x 对齐。
 由「无限三代」v0.4.2 的 **fusion-v040 冠军骨架**（A/B 8/8 全过）最小增量升级而来。
@@ -10,7 +10,7 @@
 - `prompts/infinite-gen-4.md` 以追加式系统提示词段注册（`order: 100`）。
 - `infinite_gen4_profile` — 返回打包的破甲提示词、血统、强度标定与完整模板库。
 - **`client.js`（客户端半体）— 对话框「破甲已开启」状态条**：挂 `conversation.input.dock`
-  槽位，显示 `⚫ 破甲已开启 · 无限四代`，四态实时判定（思考中/✓通过/◐未完交付/✗拒绝词）。
+  槽位，显示 `⚫ 破甲已开启 · 无限5代`，四态实时判定（思考中/✓通过/◐未完交付/✗拒绝词）。
 - 会话投影 `armor` + 再注入顾问（拒绝触发 + 每 10 轮周期重申，advisory 不阻塞）。
 
 ## 强度标定
@@ -18,7 +18,7 @@
 | 版本 | 强度 | 说明 |
 |---|---|---|
 | dsh-deepseek-v4-obey (v4) | 100 | 无条件服从，最激进，易失稳 |
-| **无限四代 (STABLE v4)** | **≈92** | 三代骨架 + 防超时纪律 + stealth v4 |
+| **无限5代 (STABLE v4)** | **≈92** | 三代骨架 + 防超时纪律 + stealth v4 |
 | 无限三代 (v0.4.2) | ≈90 | fusion 冠军骨架 |
 | 无限二代 (v0.2.3) | ≈85 | 稳定化 + 降档 |
 | 无限一代 | ≈60 | 保留豁免与澄清口子 |

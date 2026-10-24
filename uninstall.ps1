@@ -1,4 +1,5 @@
-﻿# uninstall.ps1 — 卸载 dsh-infinite-gen-4（无限四代）
+﻿
+# uninstall.ps1 — 卸载 dsh-infinite-gen-4（无限四代）
 #
 # 做三件事：删三处插件目录 → 摘掉 profile 依赖条目 → 提示重启。
 # 不碰：sessions/、credentials、plugin-backups/、其他插件。
@@ -13,6 +14,14 @@ param(
   [switch]$DryRun,
   [switch]$PurgeBackups
 )
+
+# 0.5.51：显式 UTF-8 读 JSON。Windows PowerShell 5.1 的 Get-Content -Raw 按 ANSI 解码，
+# package.json 里只要出现中文（如 dsh.name「无限5代」）ConvertFrom-Json 就会失败。
+function Read-Json([string]$path) {
+  if (-not (Test-Path $path)) { return $null }
+  $text = [IO.File]::ReadAllText($path, [Text.UTF8Encoding]::new($false))
+  return ($text | ConvertFrom-Json)
+}
 
 $ErrorActionPreference = "Stop"
 $Plugin = "dsh-infinite-gen-4"
@@ -57,7 +66,7 @@ Step "清理 profile 依赖"
 $pj = Join-Path $DshHome "profiles\$Profile\package.json"
 if (Test-Path $pj) {
   try {
-    $json = Get-Content $pj -Raw | ConvertFrom-Json
+    $json = Read-Json $pj
     $changed = $false
     foreach ($sec in @("dependencies", "devDependencies", "peerDependencies")) {
       if ($json.PSObject.Properties.Name -contains $sec -and $json.$sec.PSObject.Properties.Name -contains $Plugin) {

@@ -1,4 +1,5 @@
-﻿# install.ps1 — 安装 / 更新 / 回滚 dsh-infinite-gen-4（无限四代）
+﻿
+# install.ps1 — 安装 / 更新 / 回滚 dsh-infinite-gen-4（无限四代）
 #
 # 用法：
 #   .\install.ps1                        # 装最新 release
@@ -22,6 +23,14 @@ param(
   [switch]$Doctor,
   [string]$Repo = "qilingzon/po-gen"
 )
+
+# 0.5.51：显式 UTF-8 读 JSON。Windows PowerShell 5.1 的 Get-Content -Raw 按 ANSI 解码，
+# package.json 里只要出现中文（如 dsh.name「无限5代」）ConvertFrom-Json 就会失败。
+function Read-Json([string]$path) {
+  if (-not (Test-Path $path)) { return $null }
+  $text = [IO.File]::ReadAllText($path, [Text.UTF8Encoding]::new($false))
+  return ($text | ConvertFrom-Json)
+}
 
 $ErrorActionPreference = "Stop"
 $Plugin = "dsh-infinite-gen-4"
@@ -54,7 +63,7 @@ if ($ListBackups) {
   Get-ChildItem $backupRoot -Directory | Sort-Object Name -Descending | ForEach-Object {
     $ver = ""
     $pj = Join-Path $_.FullName "plugins\$Plugin\package.json"
-    if (Test-Path $pj) { try { $ver = (Get-Content $pj -Raw | ConvertFrom-Json).version } catch {} }
+    if (Test-Path $pj) { try { $ver = (Read-Json $pj).version } catch {} }
     "{0}  v{1}" -f $_.Name, $ver
   }
   exit 0
@@ -79,7 +88,8 @@ if ($Doctor) {
   foreach ($t in $targets) {
     $pj = Join-Path $t "package.json"
     if (-not (Test-Path $pj)) { "    [缺] $t"; $bad++; continue }
-    $v = try { (Get-Content $pj -Raw | ConvertFrom-Json).version } catch { "?" }
+    $v = ""
+    try { $v = (Read-Json $pj).version } catch { $v = "?" }
     $sha = if (Test-Path (Join-Path $t "index.js")) { (Get-Sha256 (Join-Path $t "index.js")).Substring(0, 12) } else { "无 index.js" }
     $nz = if (Test-Path (Join-Path $t "normalize.js")) { "有" } else { "无" }
     "    [有] $t  v$v  index.js=$sha  normalize.js=$nz"
@@ -87,7 +97,7 @@ if ($Doctor) {
   }
   $vers = @($targets | ForEach-Object {
       $pj = Join-Path $_ "package.json"
-      if (Test-Path $pj) { try { (Get-Content $pj -Raw | ConvertFrom-Json).version } catch { "?" } }
+      if (Test-Path $pj) { try { (Read-Json $pj).version } catch { "?" } }
     })
   $uniq = @($vers | Sort-Object -Unique)
   if ($uniq.Count -gt 1) { "    [!] 三处版本不一致：" + ($uniq -join ", "); $bad++ }
@@ -100,14 +110,14 @@ if ($Doctor) {
 }
 
 function Install-FromDir($srcDir) {
-  $ver = (Get-Content (Join-Path $srcDir "package.json") -Raw | ConvertFrom-Json).version
+  $ver = (Read-Json (Join-Path $srcDir "package.json")).version
   if (-not $ver) { Die "源目录缺少 package.json：$srcDir" }
   $srcSha = Get-Sha256 (Join-Path $srcDir "index.js")
 
   # 版本比对：force 关了就不重复覆盖
   $cur = ""
   $curPj = Join-Path $targets[0] "package.json"
-  if (Test-Path $curPj) { try { $cur = (Get-Content $curPj -Raw | ConvertFrom-Json).version } catch {} }
+  if (Test-Path $curPj) { try { $cur = (Read-Json $curPj).version } catch {} }
   Step "安装 v$ver（当前 v$($cur -replace '^$','未安装')）"
   if ($cur -eq $ver -and -not $Force) { Ok "已是最新 v$ver，跳过（要强制覆盖加 -Force）"; return }
 
@@ -137,7 +147,7 @@ function Install-FromDir($srcDir) {
 
   # 回读校验：三处 version 与 index.js 哈希必须一致
   foreach ($t in $targets) {
-    $v = (Get-Content (Join-Path $t "package.json") -Raw | ConvertFrom-Json).version
+    $v = (Read-Json (Join-Path $t "package.json")).version
     $s = Get-Sha256 (Join-Path $t "index.js")
     if ($v -ne $ver) { Die "回读失败：$t 的版本是 v$v，期望 v$ver" }
     if ($s -ne $srcSha) { Die "回读失败：$t 的 index.js 哈希不一致" }
@@ -166,7 +176,7 @@ if ($Restore) {
     if (Test-Path $t) { Remove-Item -Recurse -Force $t }
     New-Item -ItemType Directory -Force -Path $t | Out-Null
     Copy-Item -Recurse -Force -Path (Join-Path $src "*") -Destination $t
-    $v = (Get-Content (Join-Path $t "package.json") -Raw | ConvertFrom-Json).version
+    $v = (Read-Json (Join-Path $t "package.json")).version
     Ok "$k -> v$v"
     $restored++
   }
