@@ -3,7 +3,7 @@
 > DeepSeek Harness 插件：把「破甲模式」注册成一个**可选的 agent preset**。
 > 只有你显式选中它的会话才会注入交付引擎提示词；其他会话、其他模式**零注入**。
 
-[![version](https://img.shields.io/badge/version-0.5.4-2f6feb)](https://github.com/qilingzon/po-gen/releases)
+[![version](https://img.shields.io/badge/version-0.5.5-2f6feb)](https://github.com/qilingzon/po-gen/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-555)]
 
@@ -70,12 +70,12 @@ irm https://raw.githubusercontent.com/qilingzon/po-gen/main/install.ps1 -OutFile
 
 ```powershell
 # 指定版本 / 只预览不落盘 / 指定 profile
-& "$env:TEMP\gen4-install.ps1" -Version 0.5.4 -DryRun
+& "$env:TEMP\gen4-install.ps1" -Version 0.5.5 -DryRun
 & "$env:TEMP\gen4-install.ps1" -Profile desktop
 ```
 
 > macOS / Linux：`curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/main/install.sh -o /tmp/gen4-install.sh && bash /tmp/gen4-install.sh`
-> （参数同理直接加在后面：`bash /tmp/gen4-install.sh -v 0.5.4 -n`）
+> （参数同理直接加在后面：`bash /tmp/gen4-install.sh -v 0.5.5 -n`）
 
 ### 方式 B：走 DSH 自己的插件管理器（等价的「正规军」路线）
 
@@ -83,18 +83,18 @@ irm https://raw.githubusercontent.com/qilingzon/po-gen/main/install.ps1 -OutFile
 
 ```bash
 # 先退出桌面端，再在终端里执行
-dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.4
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.5
 dsh plugin --profile desktop why dsh-infinite-gen-4   # 确认已入依赖树
 ```
 
-它由 pnpm 管理版本、写进 `profiles/desktop/package.json`，升级时把 `#v0.5.4` 换成新 tag 即可。
+它由 pnpm 管理版本、写进 `profiles/desktop/package.json`，升级时把 `#v0.5.5` 换成新 tag 即可。
 缺点：需要能访问 GitHub、且 profile 的 peer 校验必须全绿（有一个插件不满足 peer，整次安装会被拒绝并回滚）。
 
 ### 方式 C：手动装 zip（完全离线）
 
 1. 到 [Releases](https://github.com/qilingzon/po-gen/releases) 下载
    `dsh-infinite-gen-4-<版本>.zip` 与 `SHA256SUMS.txt`；
-2. 校验：`certutil -hashfile dsh-infinite-gen-4-0.5.4.zip SHA256`（macOS：`shasum -a 256`）；
+2. 校验：`certutil -hashfile dsh-infinite-gen-4-0.5.5.zip SHA256`（macOS：`shasum -a 256`）；
 3. 解压后把整个 `dsh-infinite-gen-4` 目录复制到这三处（已存在就覆盖）：
    - `$DSH_HOME\plugins\dsh-infinite-gen-4`
    - `$DSH_HOME\node_modules\dsh-infinite-gen-4`
@@ -104,7 +104,7 @@ dsh plugin --profile desktop why dsh-infinite-gen-4   # 确认已入依赖树
 ## 验证装没装上
 
 ```powershell
-# 三条都应输出 0.5.4
+# 三条都应输出 0.5.5
 Get-Content "$env:USERPROFILE\.dsh\plugins\dsh-infinite-gen-4\package.json" | Select-String '"version"'
 ```
 
@@ -129,7 +129,7 @@ irm https://raw.githubusercontent.com/qilingzon/po-gen/main/install.ps1 -OutFile
 
 ```bash
 dsh plugin --profile desktop remove dsh-infinite-gen-4
-dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.4
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.5
 ```
 
 ## 回滚
@@ -199,7 +199,9 @@ curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/main/uninstall.sh 
 | 状态 | 徽标 |
 |---|---|
 | 破甲模式（已注入） | `破甲已开启 · 无限四代` |
+| 破甲模式，本场被单独关掉 | `破甲已停用 · 本对话` |
 | 其他模式，已全局注入 | `破甲已开启 · 全部模式` |
+| 其他模式，仅这一场被打开 | `破甲已开启 · 本对话` |
 | 其他模式，仅显示徽标未注入 | `破甲未启用 · 点击开启` |
 
 设置是**热生效**的：写在 `<DSH_HOME>\.dsh-infinite-gen-4.json`，插件两个实例每 4 秒轮询它，
@@ -208,17 +210,43 @@ curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/main/uninstall.sh 
 不想用界面时，命令行等价物：
 
 ```powershell
-pwsh -File tools\scope.ps1              # 看当前设置
+pwsh -File tools\scope.ps1              # 看当前设置（含按对话覆盖表）
 pwsh -File tools\scope.ps1 global       # 所有模式都注入
 pwsh -File tools\scope.ps1 local        # 只给破甲模式（默认）
 pwsh -File tools\scope.ps1 badge on     # 其他模式也显示徽标
 pwsh -File tools\scope.ps1 badge off    # 其他模式不显示徽标
+pwsh -File tools\scope.ps1 session SESSION_ID on    # 只给这一场开
+pwsh -File tools\scope.ps1 session SESSION_ID off   # 只把这一场关掉
+pwsh -File tools\scope.ps1 session SESSION_ID auto  # 这一场恢复跟随
 ```
 
 优先级：`GEN4_SCOPE` > 行配置 `scope` > 设置文件 > 默认 `local`；
 `GEN4_SHOW_BADGE` > 行配置 `showBadge` > 设置文件 > 跟随 `scope`（全局时可见）。
 若设了对应环境变量，界面点击会被拒绝（徽标上会写明「已被环境变量固定」），这是刻意设计——
 环境变量是给无人值守/CI 场景钉死行为的。
+
+## 按对话启用：这场开、那场关（0.5.5 起）
+
+`scope` 和 `showBadge` 管的是**整个 profile**；如果你只想让**当前这一场**破甲，用面板里新的一行：
+
+| 那一行的状态 | 意思 |
+|---|---|
+| 跟随上面的设置 | 没有单独覆盖，按 `scope` 走（默认） |
+| 仅这场：已打开 | 这一场显式注入，别场不受影响 |
+| 仅这场：已关闭 | 这一场显式不注入，别场照旧 |
+
+- 破甲模式的会话也能被单独关掉：想在破甲模式里做一次普通咨询，开关一关即可。
+- 关掉之后徽标还在（否则关不回去），变灰显示 `破甲已停用 · 本对话`。
+- 打开后徽标显示 `破甲已开启 · 本对话`（全局注入且没单独覆盖时才是 `全部模式`）。
+- 有过覆盖时，副标签旁多一个 **跟随** 按钮，一键清掉这场覆盖。
+- 覆盖写在设置文件的 `sessions` 表里，**热生效**；删条目即恢复跟随。
+
+实测：同一 profile 两场真实会话，打开的那场请求头带 `gen5_verify` + `delivery_profile`
+（27 个工具），没打开的是 25 个；把 B 打开、A 保持默认时，A 调 `gen5_verify` 回报
+`{"override":"auto","enabled":false}`。
+
+> 判据提示：别拿模型嘴上的「我没有这个工具」当结论。会话里如果早先答过 NO-TOOL，
+> 重新打开后它可能照抄旧结论，而请求头里工具其实已经在了。
 
 ## 配置（环境变量，全部可选）
 

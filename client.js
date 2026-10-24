@@ -157,6 +157,10 @@ window.__ModuleLoader__.load({
       var badgePair = react.useState(false);
       var showBadge = badgePair[0];
       var setShowBadge = badgePair[1];
+      // 0.5.5：按对话覆盖表 { "<会话id>": "on" | "off" }，来自宿主设置文件。
+      var sessionsPair = react.useState({});
+      var sessions = sessionsPair[0];
+      var setSessions = sessionsPair[1];
       var openPair = react.useState(false);
       var open = openPair[0];
       var setOpen = openPair[1];
@@ -189,6 +193,7 @@ window.__ModuleLoader__.load({
           if (!alive || !data) return;
           if (typeof data.scope === "string") setScope(data.scope);
           if (typeof data.showBadge === "boolean") setShowBadge(data.showBadge);
+          if (data.sessions && typeof data.sessions === "object") setSessions(data.sessions);
           if (data.envOverride) setNote("范围已被环境变量 GEN4_SCOPE 固定：" + data.envOverride);
         };
         readScope(apply);
@@ -220,8 +225,17 @@ window.__ModuleLoader__.load({
 
       var global = scope === "global";
       var isArmor = preset === "armor";
-      // 可见性：破甲模式永远显示；其他模式要么开了「显示徽标」，要么处于全局启用。
-      var visible = isArmor || global || showBadge === true;
+      // 0.5.5：本对话。armor 投影带 sessionId，据此在设置里查这场对话的显式覆盖。
+      var mySessionId = armor && armor.sessionId ? String(armor.sessionId) : "";
+      var myOverride = mySessionId && sessions ? sessions[mySessionId] : undefined;
+      // 没覆盖时跟随设置：破甲会话默认开，其他模式默认跟随全局。
+      var sessionOn = myOverride === "on"
+        ? true
+        : (myOverride === "off" ? false : (isArmor || global));
+      var sessionKnown = mySessionId !== "";
+      // 可见性：破甲模式永远显示；其他模式要么开了「显示徽标」，要么处于全局启用，
+      // 要么这场对话被单独打开过（否则打开面板的入口本身就不见了）。
+      var visible = isArmor || global || showBadge === true || myOverride === "on";
       if (!visible) return null;
 
       var running = !!(armor && armor.running);
@@ -230,11 +244,13 @@ window.__ModuleLoader__.load({
         Date.now() < flashUntilRef.current;
 
       var text = isArmor
-        ? "破甲已开启 · 无限四代"
-        : (global ? "破甲已开启 · 全部模式" : "破甲未启用 · 点击开启");
+        ? (sessionOn ? "破甲已开启 · 无限四代" : "破甲已停用 · 本对话")
+        : (sessionOn
+          ? (global && myOverride !== "on" ? "破甲已开启 · 全部模式" : "破甲已开启 · 本对话")
+          : "破甲未启用 · 点击开启");
       var dotStyle = Object.assign({}, DOT_STYLE);
       var badgeStyle = Object.assign({}, BADGE_STYLE);
-      if (!isArmor && !global) {
+      if (!sessionOn) {
         badgeStyle.borderColor = "rgba(148, 163, 184, 0.5)";
         badgeStyle.background = "rgba(148, 163, 184, 0.12)";
         dotStyle.background = "#94a3b8";
@@ -279,11 +295,15 @@ window.__ModuleLoader__.load({
           if (data && data.ok) {
             if (typeof data.scope === "string") setScope(data.scope);
             if (typeof data.showBadge === "boolean") setShowBadge(data.showBadge);
+            if (data.sessions && typeof data.sessions === "object") setSessions(data.sessions);
             return;
           }
           var code = data && data.error;
           if (code === "env-override" || code === "env-override-badge") {
             setNote("已被环境变量固定，无法在界面切换");
+          } else if (code === "sessionId" || code === "session") {
+            setNote("这场对话还没有会话 id，稍后再试");
+            setTimeout(function () { setNote(""); }, 4000);
           } else {
             setNote("保存失败，请重试");
             setTimeout(function () { setNote(""); }, 4000);
@@ -291,11 +311,72 @@ window.__ModuleLoader__.load({
         });
       }
 
+      // 本对话开关：开 → 显式 on；关 → 显式 off；有过覆盖时可一键回到「跟随设置」。
+      function commitSession(next) {
+        if (!sessionKnown) {
+          setNote("这场对话还没有会话 id，稍后再试");
+          setTimeout(function () { setNote(""); }, 4000);
+          return;
+        }
+        if (next === "auto") commit({ sessionId: mySessionId, session: "auto" });
+        else commit({ sessionId: mySessionId, session: next });
+      }
+
       var title = isArmor
         ? "点击打开破甲设置"
-        : (global ? "破甲已在全部模式启用 · 点击打开设置" : "破甲未在其他模式启用 · 点击打开设置");
+        : (sessionOn ? "破甲已在当前对话启用 · 点击打开设置" : "当前对话未启用破甲 · 点击打开设置");
 
       var rows = [];
+      // 0.5.5：本对话一行。三态（显式开 / 显式关 / 跟随设置），关掉只影响这一场。
+      if (sessionKnown) {
+        rows.push(react.createElement(
+          "div",
+          { key: "session", style: ROW_STYLE },
+          react.createElement(
+            "span",
+            { style: { display: "flex", flexDirection: "column", gap: "2px" } },
+            react.createElement("span", null, "本对话启用破甲"),
+            react.createElement(
+              "span",
+              { style: { color: "#9ca3af", fontSize: "10px", lineHeight: "13px" } },
+              myOverride === "on"
+                ? "仅这场：已打开（" + mySessionId.slice(0, 8) + "…）"
+                : (myOverride === "off"
+                  ? "仅这场：已关闭（" + mySessionId.slice(0, 8) + "…）"
+                  : "跟随上面的设置")
+            )
+          ),
+          react.createElement(
+            "span",
+            { style: { display: "flex", alignItems: "center", gap: "6px", flex: "none" } },
+            react.createElement("button", {
+              type: "button",
+              "aria-label": "本对话启用破甲",
+              "data-gen4-toggle": "session",
+              "aria-pressed": sessionOn ? "true" : "false",
+              style: switchStyle(sessionOn),
+              onClick: function () { commitSession(sessionOn ? "off" : "on"); }
+            }, react.createElement("span", { style: knobStyle(sessionOn) })),
+            myOverride
+              ? react.createElement("button", {
+                type: "button",
+                "data-gen4-session-reset": "1",
+                title: "恢复跟随上面的设置",
+                onClick: function () { commitSession("auto"); },
+                style: {
+                  flex: "none",
+                  background: "transparent",
+                  border: "none",
+                  color: "#93c5fd",
+                  fontSize: "11px",
+                  padding: "0",
+                  cursor: "pointer"
+                }
+              }, "跟随")
+              : null
+          )
+        ));
+      }
       if (!isArmor) {
         rows.push(react.createElement(
           "div",
@@ -326,10 +407,10 @@ window.__ModuleLoader__.load({
       ));
 
       var hint = isArmor
-        ? "勾选后其他模式也能看到徽标；是否注入由那里的「启用破甲」决定。"
+        ? "「本对话」只影响当前这场；上面的「其他模式显示徽标」只管看得见。"
         : (global
-          ? "当前所有模式都注入破甲框架；关掉后只有破甲模式注入。"
-          : "当前只有破甲模式注入；打开后其他模式也会注入。");
+          ? "当前所有模式都注入；把「本对话」关掉只影响这一场。"
+          : "当前只有破甲模式注入；打开「本对话」只给这一场开。");
 
       var panel = open
         ? react.createElement(
@@ -352,6 +433,9 @@ window.__ModuleLoader__.load({
             "data-armor": "gen4",
             "data-scope": scope || "unknown",
             "data-show-badge": showBadge ? "1" : "0",
+            "data-session-id": mySessionId ? mySessionId.slice(0, 12) : "",
+            "data-session-state": myOverride || "auto",
+            "data-session-on": sessionOn ? "1" : "0",
             role: "button",
             tabIndex: 0,
             title: title,

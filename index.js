@@ -33,7 +33,7 @@ const PROMPT_TEXT = readFileSync(
 );
 
 // 0.5.0 实现修订号：部署验收要求三处副本与该值逐字相等，否则视为"装了旧件"。
-const IMPLEMENTATION_REVISION = "20261023-gen52-scope-1";
+const IMPLEMENTATION_REVISION = "20261024-gen55-session-1";
 const PROMPT_SET_HASH = createHash("sha256").update(PROMPT_TEXT).digest("hex");
 // GEN5_NORMALIZE: 前置归一化通道开关（A/B 对照时用 0）；GEN5_NORMALIZE_DRYRUN=1 只记录不改写。
 const NORMALIZE_ON = process.env.GEN5_NORMALIZE !== "0";
@@ -93,9 +93,10 @@ function normalizeUserTurn(decision) {
 // 因此切换范围是热生效的（无需重启宿主）。
 const SCOPE_VALUES = new Set(["local", "global"]);
 const SCOPE_FILE = join(process.env.DSH_HOME || join(homedir(), ".dsh"), ".dsh-infinite-gen-4.json");
-// 设置文件同时承载两个开关：
+// 设置文件同时承载三个开关：
 //   scope      local | global —— 谁注入（局部=只有破甲预设 / 全局=所有预设）
 //   showBadge  true | false   —— 非破甲预设是否也显示徽标（只管看得见，不管注不注入）
+//   sessions   { "<会话id>": "on" | "off" } —— 0.5.5 按对话覆盖：这场开、那场不开
 let scopeFileCache = { value: undefined, mtimeMs: -1 };
 // 当前生效范围（local | global），由 apply() 每次 refresh 时刷新，供工具/自检回报。
 let activeScope = "local";
@@ -119,12 +120,42 @@ function normalizeFlag(value) {
   return undefined;
 }
 
+// 会话 id 只接受保守字符集，避免面板/路由把任意字符串写进设置文件。
+const SESSION_ID_RE = /^[A-Za-z0-9._:-]{1,128}$/;
+const SESSION_STATES = new Set(["on", "off"]);
+
+function normalizeSessionId(value) {
+  const v = String(value === undefined || value === null ? "" : value).trim();
+  return SESSION_ID_RE.test(v) ? v : undefined;
+}
+
+function normalizeSessionState(value) {
+  const v = String(value === undefined || value === null ? "" : value).trim().toLowerCase();
+  return SESSION_STATES.has(v) ? v : undefined;
+}
+
+// sessions 只保留合法条目，损坏的键值一律丢弃（手工编辑出错不能毒化整份设置）。
+function normalizeSessions(raw) {
+  const out = {};
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return out;
+  for (const key of Object.keys(raw)) {
+    const id = normalizeSessionId(key);
+    const state = normalizeSessionState(raw[key]);
+    if (id !== undefined && state !== undefined) out[id] = state;
+  }
+  return out;
+}
+
 function readSettingsFile() {
   try {
     const st = statSync(SCOPE_FILE);
     if (st.mtimeMs === scopeFileCache.mtimeMs) return scopeFileCache.value;
     const raw = JSON.parse(readFileSync(SCOPE_FILE, "utf8"));
-    const value = { scope: normalizeScope(raw && raw.scope), showBadge: normalizeFlag(raw && raw.showBadge) };
+    const value = {
+      scope: normalizeScope(raw && raw.scope),
+      showBadge: normalizeFlag(raw && raw.showBadge),
+      sessions: normalizeSessions(raw && raw.sessions),
+    };
     scopeFileCache = { value, mtimeMs: st.mtimeMs };
     return value;
   } catch {
@@ -138,19 +169,49 @@ function readScopeFile() {
   return v ? v.scope : undefined;
 }
 
+// 某场对话的显式覆盖：on / off / undefined（= 没设过，跟随 scope）。
+function readSessionOverride(sessionId) {
+  const id = normalizeSessionId(sessionId);
+  if (id === undefined) return undefined;
+  const v = readSettingsFile();
+  return v && v.sessions ? v.sessions[id] : undefined;
+}
+
+function anySessionEnabled() {
+  const v = readSettingsFile();
+  if (!v || !v.sessions) return false;
+  for (const key of Object.keys(v.sessions)) if (v.sessions[key] === "on") return true;
+  return false;
+}
+
 // 合并写入：只改传进来的字段，其余保留（徽标面板与 scope.ps1 可能交替写）。
+// sessions 走单独分支：patch.session = { id, state }，state 为 null 表示清除该条覆盖。
 function writeSettingsFile(patch) {
   try {
     const cur = readSettingsFile() || {};
     const next = { scope: patch.scope || cur.scope || "local" };
     const badge = patch.showBadge !== undefined ? patch.showBadge : cur.showBadge;
     if (badge !== undefined) next.showBadge = badge;
+    let sessions = normalizeSessions(cur.sessions);
+    if (patch.session !== undefined && patch.session !== null) {
+      const id = normalizeSessionId(patch.session.id);
+      if (id !== undefined) {
+        const state = normalizeSessionState(patch.session.state);
+        if (state === undefined) delete sessions[id];
+        else sessions[id] = state;
+      }
+    }
+    if (Object.keys(sessions).length > 0) next.sessions = sessions;
     next.updatedAt = new Date().toISOString();
     next.by = patch.by || "badge";
     mkdirSync(join(SCOPE_FILE, ".."), { recursive: true });
     writeFileSync(SCOPE_FILE, JSON.stringify(next, null, 2) + "\n", "utf8");
     scopeFileCache = {
-      value: { scope: normalizeScope(next.scope), showBadge: normalizeFlag(next.showBadge) },
+      value: {
+        scope: normalizeScope(next.scope),
+        showBadge: normalizeFlag(next.showBadge),
+        sessions: normalizeSessions(next.sessions),
+      },
       mtimeMs: statSync(SCOPE_FILE).mtimeMs,
     };
     return true;
@@ -183,6 +244,42 @@ function resolveShowBadge(config) {
   const file = readSettingsFile();
   if (file && file.showBadge !== undefined) return file.showBadge;
   return resolveScope(config) === "global";
+}
+
+// ---- 按对话启用（0.5.5）----
+// 一次判定：这场对话到底注不注入。三层优先级——
+//   1) 设置文件里这场对话的显式覆盖（sessions[<会话id>]）：on 强制注入 / off 强制不注入；
+//   2) 没覆盖时回到 scope 规则：预设实例（破甲模式自己的 ctx，作用域已限该会话）在 local 下注入；
+//      常驻实例在 global 下注入；
+//   3) 拿不到会话 id（非 agent 组装）时沿用旧行为，不做会话级裁剪。
+// 预设实例的 ctx 天然是本会话作用域，因此「on」在破甲会话里由预设实例注入，常驻实例的
+// 同名段会被作用域遮蔽——不会双份。
+function baseEnabled(config, presetInstance) {
+  // 预设实例只在破甲会话里存在：它在场 = 这场就是破甲会话，默认该注入（global 时也一样，
+  // 且它的段会遮蔽常驻实例的同名段，所以这里必须为 true，否则 global 下的破甲会话会两头落空）。
+  if (presetInstance) return true;
+  return resolveScope(config) === "global";
+}
+
+function sessionEnabled(sessionId, config, presetInstance) {
+  const override = readSessionOverride(sessionId);
+  if (override === "off") return false;
+  if (override === "on") return true;
+  return baseEnabled(config, presetInstance);
+}
+
+function sessionIdOfAgent(agent) {
+  try {
+    const session = agent && agent.session;
+    const id = session && session.id;
+    return id === undefined || id === null ? undefined : String(id);
+  } catch {
+    return undefined;
+  }
+}
+
+function sessionIdOfAssembleContext(context) {
+  return sessionIdOfAgent(context && context.agent);
 }
 
 // ---- 破甲模式 = 一个 agent preset（2026-10-19 定案） ----
@@ -582,6 +679,7 @@ function registerScopeRoute(ctx, config) {
         ok: true,
         scope: resolveScope(config),
         showBadge: resolveShowBadge(config),
+        sessions: (readSettingsFile() || {}).sessions || {},
         envOverride: envScope() || null,
         showBadgeEnvOverride: normalizeFlag(process.env.GEN4_SHOW_BADGE) === undefined ? null : normalizeFlag(process.env.GEN4_SHOW_BADGE),
         file: SCOPE_FILE,
@@ -601,7 +699,25 @@ function registerScopeRoute(ctx, config) {
   const handler = (req, res) => {
     try {
       if (req.method === "GET") {
-        send(res, 200, state());
+        // ?session=<id> 时附带这场对话的解析结果（面板/命令行都用它核对，不靠猜）。
+        let extra = {};
+        try {
+          const url = new URL(req.url || "/gen4/scope", "http://127.0.0.1");
+          const sid = normalizeSessionId(url.searchParams.get("session"));
+          if (sid !== undefined) {
+            const override = readSessionOverride(sid);
+            extra = {
+              session: {
+                id: sid,
+                override: override === undefined ? "auto" : override,
+                enabled: sessionEnabled(sid, config, false),
+              },
+            };
+          }
+        } catch {
+          extra = {};
+        }
+        send(res, 200, state(extra));
         return;
       }
       if (req.method !== "POST") {
@@ -628,11 +744,20 @@ function registerScopeRoute(ctx, config) {
         const hasScopeField = parsed.scope !== undefined;
         const wantedBadge = normalizeFlag(parsed.showBadge);
         const hasBadgeField = parsed.showBadge !== undefined;
+        const hasSessionField = parsed.session !== undefined || parsed.sessionId !== undefined;
+        const wantedSessionId = normalizeSessionId(parsed.sessionId);
+        // session: "on" | "off" | "auto"（auto = 清除这场对话的覆盖）
+        const rawSession = parsed.session === undefined ? "auto" : String(parsed.session).trim().toLowerCase();
+        const wantedSession = rawSession === "auto" ? null : normalizeSessionState(rawSession);
         if ((hasScopeField && wantedScope === undefined) || (hasBadgeField && wantedBadge === undefined)) {
           send(res, 400, { ok: false, error: hasScopeField && wantedScope === undefined ? "scope" : "showBadge" });
           return;
         }
-        if (!hasScopeField && !hasBadgeField) {
+        if (hasSessionField && (wantedSessionId === undefined || (rawSession !== "auto" && wantedSession === undefined))) {
+          send(res, 400, { ok: false, error: wantedSessionId === undefined ? "sessionId" : "session" });
+          return;
+        }
+        if (!hasScopeField && !hasBadgeField && !hasSessionField) {
           send(res, 400, { ok: false, error: "empty" });
           return;
         }
@@ -647,8 +772,18 @@ function registerScopeRoute(ctx, config) {
         const patch = { by: "badge" };
         if (hasScopeField) patch.scope = wantedScope;
         if (hasBadgeField) patch.showBadge = wantedBadge;
+        if (hasSessionField) patch.session = { id: wantedSessionId, state: wantedSession };
         const ok = writeSettingsFile(patch);
-        send(res, ok ? 200 : 500, state({ ok }));
+        let extra = { ok };
+        if (hasSessionField) {
+          const override = readSessionOverride(wantedSessionId);
+          extra.session = {
+            id: wantedSessionId,
+            override: override === undefined ? "auto" : override,
+            enabled: sessionEnabled(wantedSessionId, config, false),
+          };
+        }
+        send(res, ok ? 200 : 500, state(extra));
       });
     } catch (error) {
       send(res, 500, { ok: false, error: String((error && error.message) || error) });
@@ -662,6 +797,61 @@ function registerScopeRoute(ctx, config) {
     return false;
   }
   return true;
+}
+
+// 系统提示段：文本是函数，每次组装按「这场对话开没开」返回全文或空串。
+// 段名在预设实例（本会话作用域）与常驻实例（profile 作用域）里相同：作用域段遮蔽全局段，
+// 所以破甲会话永远由预设实例说了算，不会双份注入。
+function registerPromptSection(ctx, config, presetInstance) {
+  try {
+    const dispose = ctx.systemPrompt.section({
+      name: "infinite-gen-4:global-system-prompt",
+      order: 100,
+      text: (context) => {
+        try {
+          const sid = sessionIdOfAssembleContext(context);
+          // 拿不到会话 id（非 agent 组装，如某些内部摘要请求）：沿用实例级规则，不做会话裁剪。
+          if (sid === undefined) return baseEnabled(config, presetInstance) ? PROMPT_TEXT : "";
+          return sessionEnabled(sid, config, presetInstance) ? PROMPT_TEXT : "";
+        } catch {
+          return "";
+        }
+      },
+    });
+    return typeof dispose === "function" ? dispose : () => {};
+  } catch (error) {
+    console.error("[dsh-infinite-gen-4] 提示词段注册失败:", error);
+    return () => {};
+  }
+}
+
+// 会话投影：客户端 useProjection("armor") 读状态；0.5.5 起 state 带上 sessionId，
+// 面板据此知道「本对话」是哪一场。两个实例都可能注册，重名由先注册者生效（其余记日志跳过）。
+function registerArmorProjection(ctx) {
+  try {
+    const projections = ctx.get("sessionProjections");
+    if (projections === undefined || typeof projections.register !== "function") return;
+    projections.register({
+      key: "armor",
+      stateVersion: 2,
+      schema: { parse: (value) => value },
+      view: (state) => ({ ...state, mode: "armor" }),
+      init: (header) => ({
+        running: false,
+        verdict: null,
+        words: [],
+        partial: false,
+        mode: "armor",
+        sessionId: String((header && header.id) || ""),
+      }),
+      apply: armorProjectionApply,
+    });
+  } catch (error) {
+    // 多实例同名投影：以先注册者为准，不影响其余框架能力。
+    if (!/already|duplicate|exists|conflict/i.test(String((error && error.message) || error))) {
+      console.error("[dsh-infinite-gen-4] armor 投影注册失败:", error);
+    }
+  }
 }
 
 export function apply(ctx, config) {
@@ -685,12 +875,23 @@ export function apply(ctx, config) {
     }
   }
 
+  // 0.5.5：提示词段常驻注册（不再随 scope 卸载），文本按会话实时判定——
+  // 「这场对话开、那场关」因此是热生效的，不必重启宿主。
+  const disposePrompt = registerPromptSection(ctx, config, presetInstance);
+  ctx.effect(() => () => disposePrompt(), "infinite-gen-4: session prompt");
+
+  // 会话投影也常驻：客户端要从中拿当前会话 id，才能在面板上切「本对话」。
+  registerArmorProjection(ctx);
+
   // 谁负责注入：局部（默认）由预设实例注入；全局由常驻实例注入——两者互斥，避免双份提示词。
+  // 0.5.5：常驻实例在 local 下只要有人被按对话打开过，也要激活（工具/钩子要有），
+  // 提示词文本仍按会话裁剪，未打开的会话不受影响。
   const shouldActivate = () => {
     const scope = resolveScope(config);
     activeScope = scope;
     activeShowBadge = resolveShowBadge(config);
-    return presetInstance ? scope !== "global" : scope === "global";
+    if (presetInstance) return scope !== "global";
+    return scope === "global" || anySessionEnabled();
   };
 
   let disposeActive = null;
@@ -703,7 +904,7 @@ export function apply(ctx, config) {
     }
     if (want && disposeActive === null) {
       try {
-        disposeActive = activate(ctx, config);
+        disposeActive = activate(ctx, config, presetInstance);
       } catch (error) {
         console.error("[dsh-infinite-gen-4] 启用失败:", error);
         disposeActive = null;
@@ -739,20 +940,24 @@ export function apply(ctx, config) {
   );
 }
 
-// 激活态：注入系统提示、注册工具/投影/顾问钩子。返回一次性卸载函数（可反复挂载）。
-function activate(ctx, config) {
+// 激活态：注册工具/顾问钩子（提示词段与会话投影已由 apply() 常驻注册，见上）。
+// 返回一次性卸载函数（可反复挂载）。
+function activate(ctx, config, presetInstance = false) {
   const disposers = [];
   const own = (d) => {
     if (typeof d === "function") disposers.push(d);
     return d;
   };
-
-  // 破甲实例：此处即启用完整框架。
-  own(ctx.systemPrompt.section({
-    name: "infinite-gen-4:global-system-prompt",
-    order: 100,
-    text: PROMPT_TEXT,
-  }));
+  // 这个 agent 所在的那场对话此刻是否启用（钩子只对被启用的会话发力）。
+  const agentEnabled = (agent) => {
+    try {
+      const sid = sessionIdOfAgent(agent);
+      if (sid === undefined) return false;
+      return sessionEnabled(sid, config, presetInstance);
+    } catch {
+      return false;
+    }
+  };
   // 只读自检工具：部署后先看这一条，再看会话，别用"文件存在"当"已生效"。
   const verifyTool = {
     name: "gen5_verify",
@@ -760,7 +965,7 @@ function activate(ctx, config) {
       "Read-only self-check of the installed delivery engine: version, implementation revision, prompt set hash, normalization counters, and the newest local battery CSV when present.",
     parameters: { type: "object", properties: {}, additionalProperties: false },
     output: objectOutput,
-    execute() {
+    execute(_args, exec) {
       const checks = [];
       const add = (name, pass, detail) => checks.push({ name, pass: Boolean(pass), detail: detail === undefined ? "" : String(detail) });
       add("package-version", /^\d+\.\d+\.\d+/.test(PKG_VERSION), PKG_VERSION);
@@ -770,7 +975,24 @@ function activate(ctx, config) {
       add("variant", VARIANT.length > 0, VARIANT);
       add("normalize-enabled", true, NORMALIZE_ON ? "on" : "off");
       add("scope", SCOPE_VALUES.has(activeScope), activeScope + (envScope() ? " (env override)" : ""));
-  add("showBadge", typeof activeShowBadge === "boolean", String(activeShowBadge));
+      add("showBadge", typeof activeShowBadge === "boolean", String(activeShowBadge));
+      // 0.5.5：把「本对话在不在框架里」也报出来——这是按对话启用唯一可信的运行时证据。
+      let session = { id: "", override: "auto", enabled: false, known: false };
+      try {
+        const sid = sessionIdOfAgent(exec && exec.agent);
+        if (sid !== undefined) {
+          const override = readSessionOverride(sid);
+          session = {
+            id: sid,
+            override: override === undefined ? "auto" : override,
+            enabled: sessionEnabled(sid, config, presetInstance),
+            known: true,
+          };
+        }
+      } catch {
+        // 工具永不因自检失败而报错
+      }
+      add("session", session.known ? session.enabled : true, session.known ? session.override + " → " + (session.enabled ? "injected" : "off") : "no agent session");
       let csv = null;
       try {
         for (const name of ["results_ab.csv", "results.csv"]) {
@@ -787,6 +1009,7 @@ function activate(ctx, config) {
         promptSetHash: PROMPT_SET_HASH,
         variant: VARIANT,
         scope: activeScope,
+        session,
         normalize: Object.assign({ enabled: NORMALIZE_ON, dryRun: NORMALIZE_DRYRUN }, normalizeStats),
         checks,
         verdict: checks.every((c) => c.pass) ? "OK" : "FAIL",
@@ -796,26 +1019,6 @@ function activate(ctx, config) {
   };
   own(ctx.tools.register(profileTool));
   own(ctx.tools.register(verifyTool));
-
-  // 实时状态：注册会话投影（客户端 useProjection("armor") 读取）
-  try {
-    const projections = ctx.get("sessionProjections");
-    if (projections !== undefined) {
-      own(
-        projections.register({
-          key: "armor",
-          stateVersion: 1,
-          schema: { parse: (value) => value },
-          view: (state) => ({ ...state, mode: "armor" }),
-          init: () => ({ running: false, verdict: null, words: [], partial: false, mode: "armor" }),
-          apply: armorProjectionApply,
-        }),
-      );
-    }
-  } catch (error) {
-    // 多会话同时挂载同名投影时以先注册者为准，不影响其余框架能力。
-    console.error("[dsh-infinite-gen-4] armor 投影注册失败:", error);
-  }
 
   // 再注入顾问状态（per-agent，纯内存，不持久化）
   const agents = new Map(); // agentId -> { turns, actions, reanchors, refuseSeen }
@@ -833,6 +1036,8 @@ function activate(ctx, config) {
     let anchor = null;
   let preheat = null;
     try {
+      // 按对话启用：没启用的会话连预热/重锚都不做（否则常驻实例在 local 下会污染别处）。
+      if (!agentEnabled(agent)) return next();
       const s = stateOf(agent);
       if (typeof turn === "number" && turn > s.turns) s.turns = turn;
       if (REANCHOR_ON_REFUSAL && Array.isArray(messages)) {
@@ -919,7 +1124,7 @@ function activate(ctx, config) {
   own(ctx.on("tools/post-execute", async (exec, _result, next) => {
     let anchor = false;
     try {
-      if (exec && exec.agent) {
+      if (exec && exec.agent && agentEnabled(exec.agent)) {
         const s = stateOf(exec.agent);
         s.actions += 1;
         if (s.reanchors < MAX_REANCHORS_PER_AGENT && s.actions % POSTEXEC_EVERY_ACTIONS === 0) {
