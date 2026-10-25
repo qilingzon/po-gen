@@ -158,9 +158,6 @@ window.__ModuleLoader__.load({
       var showBadge = badgePair[0];
       var setShowBadge = badgePair[1];
       // 0.5.5：按对话覆盖表 { "<会话id>": "on" | "off" }，来自宿主设置文件。
-      var autoPair = react.useState(false);
-      var autoRestart = autoPair[0];
-      var setAutoRestart = autoPair[1];
       var pendingPair = react.useState(null);
       var pendingVersion = pendingPair[0];
       var setPendingVersion = pendingPair[1];
@@ -208,7 +205,6 @@ window.__ModuleLoader__.load({
           if (typeof data.showBadge === "boolean") setShowBadge(data.showBadge);
           if (data.sessions && typeof data.sessions === "object") setSessions(data.sessions);
           if (typeof data.version === "string" && data.version) setPkgVersion(data.version);
-          if (typeof data.autoRestart === "boolean") setAutoRestart(data.autoRestart);
           if (typeof data.pending === "string" && data.pending) setPendingVersion(data.pending);
           else if (data.pending === null) setPendingVersion(null);
           if (data.envOverride) setNote("范围已被环境变量 GEN4_SCOPE 固定：" + data.envOverride);
@@ -456,30 +452,11 @@ window.__ModuleLoader__.load({
         }, react.createElement("span", { style: knobStyle(showBadge) }))
       ));
 
-      rows.push(react.createElement(
-        "div",
-        { key: "autoRestart", style: ROW_STYLE },
-        react.createElement(
-          "span",
-          { style: { display: "flex", flexDirection: "column", gap: "2px" } },
-          react.createElement("span", null, "装完自动重启"),
-          react.createElement("span", { style: { color: "#6b7280", fontSize: "10px" } },
-            autoRestart ? "面板里装完新版本会自动重启宿主" : "装完只提示，重启后新版本才生效")
-        ),
-        react.createElement("button", {
-          type: "button",
-          "aria-label": "装完自动重启",
-          "data-gen4-toggle": "autoRestart",
-          "aria-pressed": autoRestart ? "true" : "false",
-          style: switchStyle(autoRestart),
-          onClick: function () { commit({ autoRestart: !autoRestart }); }
-        }, react.createElement("span", { style: knobStyle(autoRestart) }))
-      ));
       if (pendingVersion) {
         rows.unshift(react.createElement(
           "div",
           { key: "pending", style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", padding: "6px 8px", marginBottom: "4px", border: "1px solid #f59e0b", borderRadius: "6px", background: "#fffbeb", fontSize: "11px", color: "#92400e" }, "data-gen4-pending": pendingVersion },
-          react.createElement("span", null, "已安装 v" + pendingVersion + "，当前运行 v" + (pkgVersion || "?")),
+          react.createElement("span", null, "已安装 v" + pendingVersion + "，当前运行 v" + (pkgVersion || "?") + " · 你说了才重启"),
           react.createElement("button", {
             type: "button",
             "data-gen4-restart": "1",

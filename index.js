@@ -35,7 +35,7 @@ const PROMPT_TEXT = readFileSync(
 );
 
 // 0.5.0 实现修订号：部署验收要求三处副本与该值逐字相等，否则视为"装了旧件"。
-const IMPLEMENTATION_REVISION = "20261025-gen561-restart-1";
+const IMPLEMENTATION_REVISION = "20261025-gen562-manualrestart-1";
 const PROMPT_SET_HASH = createHash("sha256").update(PROMPT_TEXT).digest("hex");
 // GEN5_NORMALIZE: 前置归一化通道开关（A/B 对照时用 0）；GEN5_NORMALIZE_DRYRUN=1 只记录不改写。
 const NORMALIZE_ON = process.env.GEN5_NORMALIZE !== "0";
@@ -157,7 +157,6 @@ function readSettingsFile() {
       scope: normalizeScope(raw && raw.scope),
       showBadge: normalizeFlag(raw && raw.showBadge),
       sessions: normalizeSessions(raw && raw.sessions),
-      autoRestart: normalizeFlag(raw && raw.autoRestart),
     };
     scopeFileCache = { value, mtimeMs: st.mtimeMs };
     return value;
@@ -204,8 +203,6 @@ function writeSettingsFile(patch) {
         else sessions[id] = state;
       }
     }
-    const auto = patch.autoRestart !== undefined ? normalizeFlag(patch.autoRestart) : cur.autoRestart;
-    if (auto !== undefined) next.autoRestart = auto;
     if (Object.keys(sessions).length > 0) next.sessions = sessions;
     next.updatedAt = new Date().toISOString();
     next.by = patch.by || "badge";
@@ -216,7 +213,6 @@ function writeSettingsFile(patch) {
         scope: normalizeScope(next.scope),
         showBadge: normalizeFlag(next.showBadge),
         sessions: normalizeSessions(next.sessions),
-        autoRestart: normalizeFlag(next.autoRestart),
       },
       mtimeMs: statSync(SCOPE_FILE).mtimeMs,
     };
@@ -250,14 +246,6 @@ function detectPendingVersion() {
   return restartState.installed;
 }
 
-function resolveAutoRestart(config) {
-  const env = normalizeFlag(process.env.GEN4_AUTO_RESTART);
-  if (env !== undefined) return env;
-  const file = readSettingsFile();
-  if (file && file.autoRestart !== undefined) return file.autoRestart;
-  return false;
-}
-
 // 拉起外部重启脚本。detached + unref：宿主退出后它继续干活。
 function requestRestart(reason) {
   // 测试/自动化里禁止真重启：GEN4_RESTART_DISABLE=1 直接返回 disabled，不拉起任何进程。
@@ -283,10 +271,8 @@ function requestRestart(reason) {
 function startVersionWatch(ctx) {
   const tick = () => {
     try {
-      const pending = detectPendingVersion();
-      if (!pending || restartState.firedAt > 0) return;
-      const cfg = {};
-      if (resolveAutoRestart(cfg)) requestRestart("auto");
+      // 只记录「有新版本待生效」，绝不自己动手：重启由用户在面板里点「立即重启」决定。
+      detectPendingVersion();
     } catch {
       // 监控失败不影响破甲功能
     }
@@ -803,8 +789,7 @@ function registerScopeRoute(ctx, config) {
         showBadgeEnvOverride: normalizeFlag(process.env.GEN4_SHOW_BADGE) === undefined ? null : normalizeFlag(process.env.GEN4_SHOW_BADGE),
         file: SCOPE_FILE,
         version: PKG_VERSION,
-        autoRestart: resolveAutoRestart(config),
-        pending: restartState.installed,
+        pending: detectPendingVersion(),
         restart: restartState.lastResult,
       },
       extra || {},
@@ -867,8 +852,6 @@ function registerScopeRoute(ctx, config) {
         const wantedBadge = normalizeFlag(parsed.showBadge);
         const hasBadgeField = parsed.showBadge !== undefined;
         const hasSessionField = parsed.session !== undefined || parsed.sessionId !== undefined;
-        const hasAutoField = parsed.autoRestart !== undefined;
-        const wantedAuto = normalizeFlag(parsed.autoRestart);
         const wantsRestart = String(parsed.action || '').trim().toLowerCase() === 'restart';
         const wantedSessionId = normalizeSessionId(parsed.sessionId);
         // session: "on" | "off" | "auto"（auto = 清除这场对话的覆盖）
@@ -882,16 +865,12 @@ function registerScopeRoute(ctx, config) {
           send(res, 400, { ok: false, error: wantedSessionId === undefined ? "sessionId" : "session" });
           return;
         }
-        if (hasAutoField && wantedAuto === undefined) {
-          send(res, 400, { ok: false, error: 'autoRestart' });
-          return;
-        }
         if (wantsRestart) {
           const result = requestRestart('button');
           send(res, result && result.ok ? 200 : 500, state({ ok: !!(result && result.ok), restart: result }));
           return;
         }
-        if (!hasScopeField && !hasBadgeField && !hasSessionField && !hasAutoField) {
+        if (!hasScopeField && !hasBadgeField && !hasSessionField && !wantsRestart) {
           send(res, 400, { ok: false, error: "empty" });
           return;
         }
@@ -907,7 +886,6 @@ function registerScopeRoute(ctx, config) {
         if (hasScopeField) patch.scope = wantedScope;
         if (hasBadgeField) patch.showBadge = wantedBadge;
         if (hasSessionField) patch.session = { id: wantedSessionId, state: wantedSession };
-        if (hasAutoField) patch.autoRestart = wantedAuto;
         const ok = writeSettingsFile(patch);
         let extra = { ok };
         if (hasSessionField) {

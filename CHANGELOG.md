@@ -1,6 +1,26 @@
 # CHANGELOG
 
-## 0.5.61 — 2026-10-25 · 面板里装完就能重启（不用命令行）
+## 0.5.62 — 2026-10-25 · 重启由你点，不再自动
+
+### 修正
+0.5.61 做成了「装完自动重启」，但用户要的是**可以选择的主动重启**：什么时候重启由人决定，插件不能替他做。
+本版把自动触发整段删掉，只保留「发现新版本待生效」+「立即重启」按钮。
+
+- 删除 `autoRestart` 设置项、面板开关与 `GEN4_AUTO_RESTART` 联动，`POST /gen4/scope` 不再接受该字段。
+- 版本哨兵只记录 `pending`（磁盘 package.json 的 version ≠ 内存里的 `PKG_VERSION`），**绝不自己拉起重启**。
+- 面板顶部横幅：`已安装 vX，当前运行 vY · 你说了才重启`，右侧一个「立即重启」按钮。
+- `POST /gen4/scope {action:"restart"}` 仍是唯一的重启入口，必须由这次点击触发。
+- `GET /gen4/scope` 每次都实时重算 `pending`（不依赖 5 秒轮询的缓存）。
+
+### 不变
+`tools/restart-host.ps1` 仍是执行者（detached、默认经计划任务脱离宿主进程树）；
+`GEN4_RESTART_DISABLE=1` 仍可禁止真实重启（测试用）；`tools/update.ps1 -Restart` 的命令行三档保留（那是你显式传参才算）。
+
+### 证据
+- `.diag/restart061/route.test.mjs` **11/11**（含 pending 实时计算、重启被闸门挡住、跨源 403、代码里无 `requestRestart("auto")`）。
+- `.diag/restart061/client_static.mjs` **9/9**（有「立即重启」、无 `autoRestart` 开关与状态）。
+
+## 0.5.61 — 2026-10-25 · 面板里装完就能重启（自动部分已由 0.5.62 移除）
 
 ### 背景
 用户要求「在 DSH UI 里装完就能重启」。宿主面板的安装动作由 `dsh-plugin-manager` 驱动，插件无法介入；

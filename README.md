@@ -356,26 +356,15 @@ dsh-infinite-gen-4/
 
 
 
-## 装完自动重启（0.5.60 起）
+## 装完重启（命令行 / 面板两条路）
 
-`tools/update.ps1` 带 `-Restart`：
+**命令行**（`tools/update.ps1`，0.5.60 起）：`-Restart auto|prompt|never`，默认 `prompt`（装完问一句）。
 
-```powershell
-pwsh -File tools\update.ps1 -Restart auto      # 装完直接重启
-pwsh -File tools\update.ps1                    # 默认 prompt，问一句
-pwsh -File tools\update.ps1 -Restart never     # 只提示不重启
-pwsh -File tools\update.ps1 -DryRun            # 只报告会重启谁
-```
+**面板里**（0.5.61 起，0.5.62 起只保留手动）：装完新版本后，设置面板顶部出现
 
-自动重启只碰 Electron 主进程（无 `--type=` 的 `DeepSeek Harness.exe`）或 `dsh web` 的 node 进程；
-会掐断正在生成的回答，桌面端重启后回到最近会话。
-## 面板里装完自动重启（0.5.61 起）
+> 已安装 vX，当前运行 vY · 你说了才重启   [立即重启]
 
-打开徽标设置面板，最后一行是「装完自动重启」：
-
-- **开**：在 DSH 面板里装完新版本，插件 5 秒内察觉版本变化，自动重启宿主。
-- **关**：面板顶部出现「已安装 vX，当前运行 vY」横幅 + 「立即重启」按钮，点了才重启。
-
-重启由 `tools/restart-host.ps1` 执行（detached，默认经计划任务脱离宿主进程树）；
+插件只负责发现「磁盘上是新的、内存里还是旧的」，**不会自己重启**；点「立即重启」才执行。
+重启由 `tools/restart-host.ps1` 完成（detached，默认经计划任务脱离宿主进程树），
 只结束 Electron 主进程或 `dsh web` 的 node 进程，再用原路径/原命令行拉起。
 `GEN4_RESTART_DISABLE=1` 可禁止重启（测试用）。
