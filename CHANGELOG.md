@@ -1,5 +1,32 @@
 # CHANGELOG
 
+## 0.5.61 — 2026-10-25 · 面板里装完就能重启（不用命令行）
+
+### 背景
+用户要求「在 DSH UI 里装完就能重启」。宿主面板的安装动作由 `dsh-plugin-manager` 驱动，插件无法介入；
+但插件能察觉「磁盘上的版本已经不是内存里这份」，然后自己安排重启。
+
+### 实现
+- **版本哨兵**：`apply()` 起 5 秒轮询 `<插件目录>/package.json` 的 version，与内存里的 `PKG_VERSION` 比对。
+  不一致 ⇒ `pending = 磁盘版本`，`GET /gen4/scope` 里带出去。
+- **面板开关**「装完自动重启」（`autoRestart`，写进 `.dsh-infinite-gen-4.json`，`GEN4_AUTO_RESTART` 可钉死）。
+  开着 → 哨兵一发现新版本就自动重启；关着 → 面板顶部出现琥珀色横幅「已安装 vX，当前运行 vY」+ 「立即重启」。
+- **重启执行者**：`tools/restart-host.ps1`，由插件 `spawn(..., {detached:true, stdio:'ignore'})` 拉起，
+  脱离宿主进程树后干活；默认经计划任务二次脱离（`-Via schedule`），再结束 Electron 主进程
+  （无 `--type=` 的 `DeepSeek Harness.exe`）或 `dsh web` 的 node 进程，最后用原路径/原命令行重启。
+- **安全闸**：`GEN4_RESTART_DISABLE=1` 时 `requestRestart()` 直接返回 `disabled`，不拉起任何进程（测试用）。
+- `POST /gen4/scope` 新增 `{autoRestart: bool}` 与 `{action:"restart"}`。
+
+### 边界
+- 插件自己不能重启宿主（装配中途自杀），所以一定是「外部脚本动的手」；宿主的安装框仍会提示重启，忽略即可。
+- 自动重启会掐断正在生成的回答；桌面端重启后回到最近会话，网页端要重新打开标签页。
+- 计划任务创建失败（组策略禁用等）时自动退回进程内直接重启。
+
+### 证据
+- `.diag/restart061/route.test.mjs` **10/10**（默认值、落盘、改 scope 不丢、非法值 400、空 body、重启被闸门挡住、跨源 403）。
+- `.diag/restart061/client_static.mjs` **9/9**（自动重启行、按钮、action:restart、横幅、hooks 在早退前）。
+- `tools/restart-host.ps1` 真机 `-DryRun` 命中桌面主进程 pid=51188；`parse-errors=0`。
+
 ## 0.5.60 — 2026-10-25 · 装完可选自动重启
 
 ### 新增

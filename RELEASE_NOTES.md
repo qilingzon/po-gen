@@ -1,32 +1,34 @@
-# RELEASE NOTES · dsh-infinite-gen-4 v0.5.60-lab-20261025
+# RELEASE NOTES · dsh-infinite-gen-4 v0.5.61-lab-20261025
 
 > 由 `node .diag/build_release.js` 生成；逐文件 SHA256 见同目录 `MANIFEST.json`。
 > 源目录：`D:\deepseek\armor-lab\gen4_home\plugins\dsh-infinite-gen-4`（lab 规范源）。**发布件不含 `*.bak*` / `.REJECTED.md` / node_modules。**
 
-## 0. 本版变更（0.5.60）
+## 0. 本版变更（0.5.61）
 
-**新增**：装完可选自动重启宿主。
+**新增**：在 DSH 面板里装完，插件自己安排重启，不必再开命令行。
 
-`tools/update.ps1` 增加 `-Restart`，三档：`auto`（装完直接重启）、`prompt`（问一句，默认）、`never`（只提示，0.5.59 行为）。
-另有 `-DryRun`：只报告会重启哪个进程，不动手。
+面板设置里多一行「装完自动重启」：
 
-识别规则：桌面端只认 Electron 主进程（`DeepSeek Harness.exe` 且命令行不含 `--type=`），
-renderer / gpu / utility 一律不碰；`dsh web` 认同时含 `dsh` 与 `web` 的 node 进程，用原始命令行重放。
-找不到宿主时输出 `NO-HOST`，不报错退出。
+- **开** —— 装完 5 秒内察觉磁盘版本变化，自动重启宿主。
+- **关** —— 面板顶部出现「已安装 vX，当前运行 vY」横幅 + 「立即重启」按钮。
 
-边界：插件跑在宿主体内，重启自己等于自杀且装不完，所以这一步只能由外部脚本做；自动重启会掐断正在生成的回答。
+实现：`index.js` 起 5 秒版本哨兵（比对 `<插件目录>/package.json` 与内存里的 `PKG_VERSION`），
+发现不一致就 `spawn` 脱离宿主的 `tools/restart-host.ps1`；脚本默认经计划任务二次脱离进程树，
+再结束 Electron 主进程（无 `--type=` 的 `DeepSeek Harness.exe`）或 `dsh web` 的 node 进程，用原路径/原命令行拉起。
+`GEN4_RESTART_DISABLE=1` 可禁止真实重启（测试用）。
 
-```powershell
-pwsh -File tools\update.ps1 -DryRun        # 先看会重启谁
-pwsh -File tools\update.ps1 -Restart auto  # 装完自动重启
-```
+宿主面板的安装框仍会提示「重启后生效」，可以忽略——重启由插件接管。
+自动重启会掐断正在生成的回答；桌面端重启后回到最近会话，网页端需重新打开标签页。
 
-提示词 `b37-lite.md` 逐字节未改，破甲能力与 0.5.59 一致。
+### 证据
+`.diag/restart061/route.test.mjs` 10/10、`client_static.mjs` 9/9、`tools/restart-host.ps1 -DryRun` 真机命中主进程 pid=51188。
 
 ### 升级
 ```powershell
-dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.60
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.61
 ```
+
+补一句：**升级到 0.5.61 这一次仍需手动重启一次**（旧版还没有重启能力），从下一版起才会自动。
 > 说明：§1–§4 由 build_release.js 模板继承，其中变体交付率与电池数字截至 0.4.2–0.4.10，属**历史数据**。
 
 ## 1. 这一版的关键事实（都可复跑核验）
@@ -68,7 +70,7 @@ dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.60
 ## 4. 校验方式
 
 ```powershell
-pwsh -File .diag\verify_release.ps1 -Version v0.5.60-lab-20261025      # 发布件 == lab 源 == 两份生效副本
+pwsh -File .diag\verify_release.ps1 -Version v0.5.61-lab-20261025      # 发布件 == lab 源 == 两份生效副本
 node .diag\verify_regression.js                          # 判据金标
 node .diag\selftest.js                                   # 12 项
 pwsh -File .diag\overnight_verify.ps1                     # 一条命令全绿

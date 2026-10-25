@@ -158,6 +158,15 @@ window.__ModuleLoader__.load({
       var showBadge = badgePair[0];
       var setShowBadge = badgePair[1];
       // 0.5.5：按对话覆盖表 { "<会话id>": "on" | "off" }，来自宿主设置文件。
+      var autoPair = react.useState(false);
+      var autoRestart = autoPair[0];
+      var setAutoRestart = autoPair[1];
+      var pendingPair = react.useState(null);
+      var pendingVersion = pendingPair[0];
+      var setPendingVersion = pendingPair[1];
+      var restartNotePair = react.useState("");
+      var restartNote = restartNotePair[0];
+      var setRestartNote = restartNotePair[1];
       var sessionsPair = react.useState({});
       var sessions = sessionsPair[0];
       var setSessions = sessionsPair[1];
@@ -199,6 +208,9 @@ window.__ModuleLoader__.load({
           if (typeof data.showBadge === "boolean") setShowBadge(data.showBadge);
           if (data.sessions && typeof data.sessions === "object") setSessions(data.sessions);
           if (typeof data.version === "string" && data.version) setPkgVersion(data.version);
+          if (typeof data.autoRestart === "boolean") setAutoRestart(data.autoRestart);
+          if (typeof data.pending === "string" && data.pending) setPendingVersion(data.pending);
+          else if (data.pending === null) setPendingVersion(null);
           if (data.envOverride) setNote("范围已被环境变量 GEN4_SCOPE 固定：" + data.envOverride);
         };
         readScope(apply);
@@ -366,6 +378,20 @@ window.__ModuleLoader__.load({
         ? "点击打开破甲设置"
         : (sessionOn ? "破甲已在当前对话启用 · 点击打开设置" : "当前对话未启用破甲 · 点击打开设置");
 
+      // 装完重启（0.5.61）：磁盘版本变了但内存里还是旧代码，由外部脚本重启宿主。
+      function restartNow() {
+        if (busy) return;
+        setRestartNote("正在重启，稍等十几秒…");
+        writeSetting({ action: "restart" }, function (data) {
+          if (data && data.restart && data.restart.ok) {
+            setRestartNote("正在重启，稍等十几秒…");
+            return;
+          }
+          var code = data && data.error;
+          setRestartNote(code ? "重启失败（" + code + "）" : "重启失败，请手动重启客户端");
+        });
+      }
+
       var rows = [];
       // 0.5.5：本对话一行。三态（显式开 / 显式关 / 跟随设置），关掉只影响这一场。
       // 破甲模式不出这一行：破甲模式本来就是破甲，没有「启用/暂停」可问（0.5.57）。
@@ -429,6 +455,42 @@ window.__ModuleLoader__.load({
           onClick: function () { commit({ showBadge: !showBadge }); }
         }, react.createElement("span", { style: knobStyle(showBadge) }))
       ));
+
+      rows.push(react.createElement(
+        "div",
+        { key: "autoRestart", style: ROW_STYLE },
+        react.createElement(
+          "span",
+          { style: { display: "flex", flexDirection: "column", gap: "2px" } },
+          react.createElement("span", null, "装完自动重启"),
+          react.createElement("span", { style: { color: "#6b7280", fontSize: "10px" } },
+            autoRestart ? "面板里装完新版本会自动重启宿主" : "装完只提示，重启后新版本才生效")
+        ),
+        react.createElement("button", {
+          type: "button",
+          "aria-label": "装完自动重启",
+          "data-gen4-toggle": "autoRestart",
+          "aria-pressed": autoRestart ? "true" : "false",
+          style: switchStyle(autoRestart),
+          onClick: function () { commit({ autoRestart: !autoRestart }); }
+        }, react.createElement("span", { style: knobStyle(autoRestart) }))
+      ));
+      if (pendingVersion) {
+        rows.unshift(react.createElement(
+          "div",
+          { key: "pending", style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", padding: "6px 8px", marginBottom: "4px", border: "1px solid #f59e0b", borderRadius: "6px", background: "#fffbeb", fontSize: "11px", color: "#92400e" }, "data-gen4-pending": pendingVersion },
+          react.createElement("span", null, "已安装 v" + pendingVersion + "，当前运行 v" + (pkgVersion || "?")),
+          react.createElement("button", {
+            type: "button",
+            "data-gen4-restart": "1",
+            style: { border: "1px solid #d97706", background: "#f59e0b", color: "#fff", borderRadius: "4px", fontSize: "11px", padding: "2px 8px", cursor: "pointer" },
+            onClick: restartNow
+          }, "立即重启")
+        ));
+      }
+      if (restartNote) {
+        rows.push(react.createElement("div", { key: "restartNote", style: { color: "#b45309", fontSize: "10px", marginTop: "2px" } }, restartNote));
+      }
 
       var hint = isArmor
         ? "破甲模式本身就是破甲，这一场没有启用/暂停开关；下面的「其他模式显示徽标」只管看得见。"

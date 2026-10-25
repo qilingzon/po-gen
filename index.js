@@ -1,5 +1,7 @@
+import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { buildPreheat, shouldPreheat } from "./preheat.js";
@@ -33,7 +35,7 @@ const PROMPT_TEXT = readFileSync(
 );
 
 // 0.5.0 实现修订号：部署验收要求三处副本与该值逐字相等，否则视为"装了旧件"。
-const IMPLEMENTATION_REVISION = "20261025-gen559-origin-1";
+const IMPLEMENTATION_REVISION = "20261025-gen561-restart-1";
 const PROMPT_SET_HASH = createHash("sha256").update(PROMPT_TEXT).digest("hex");
 // GEN5_NORMALIZE: 前置归一化通道开关（A/B 对照时用 0）；GEN5_NORMALIZE_DRYRUN=1 只记录不改写。
 const NORMALIZE_ON = process.env.GEN5_NORMALIZE !== "0";
@@ -155,6 +157,7 @@ function readSettingsFile() {
       scope: normalizeScope(raw && raw.scope),
       showBadge: normalizeFlag(raw && raw.showBadge),
       sessions: normalizeSessions(raw && raw.sessions),
+      autoRestart: normalizeFlag(raw && raw.autoRestart),
     };
     scopeFileCache = { value, mtimeMs: st.mtimeMs };
     return value;
@@ -201,6 +204,8 @@ function writeSettingsFile(patch) {
         else sessions[id] = state;
       }
     }
+    const auto = patch.autoRestart !== undefined ? normalizeFlag(patch.autoRestart) : cur.autoRestart;
+    if (auto !== undefined) next.autoRestart = auto;
     if (Object.keys(sessions).length > 0) next.sessions = sessions;
     next.updatedAt = new Date().toISOString();
     next.by = patch.by || "badge";
@@ -211,6 +216,7 @@ function writeSettingsFile(patch) {
         scope: normalizeScope(next.scope),
         showBadge: normalizeFlag(next.showBadge),
         sessions: normalizeSessions(next.sessions),
+        autoRestart: normalizeFlag(next.autoRestart),
       },
       mtimeMs: statSync(SCOPE_FILE).mtimeMs,
     };
@@ -221,6 +227,81 @@ function writeSettingsFile(patch) {
   }
 }
 
+// ── 装完重启（0.5.61）──────────────────────────────────────────────────────────
+// 面板里装完新版本后，跑在内存里的还是旧代码。插件不能重启自己（装配中途自杀），
+// 于是把重启交给 detached 的外部脚本：tools/restart-host.ps1。
+const INSTALL_DIR = fileURLToPath(new URL(".", import.meta.url));
+const RESTART_HELPER = join(INSTALL_DIR, "tools", "restart-host.ps1");
+const restartState = { installed: null, checkedAt: 0, firedAt: 0, lastResult: null };
+
+function readInstalledVersion() {
+  try {
+    return JSON.parse(readFileSync(join(INSTALL_DIR, "package.json"), "utf8")).version || null;
+  } catch {
+    return null;
+  }
+}
+
+// 磁盘上的 package.json 版本 != 内存里跑的版本 ⇒ 装完了但没生效。
+function detectPendingVersion() {
+  restartState.checkedAt = Date.now();
+  const v = readInstalledVersion();
+  restartState.installed = v && v !== PKG_VERSION ? v : null;
+  return restartState.installed;
+}
+
+function resolveAutoRestart(config) {
+  const env = normalizeFlag(process.env.GEN4_AUTO_RESTART);
+  if (env !== undefined) return env;
+  const file = readSettingsFile();
+  if (file && file.autoRestart !== undefined) return file.autoRestart;
+  return false;
+}
+
+// 拉起外部重启脚本。detached + unref：宿主退出后它继续干活。
+function requestRestart(reason) {
+  // 测试/自动化里禁止真重启：GEN4_RESTART_DISABLE=1 直接返回 disabled，不拉起任何进程。
+  if (normalizeFlag(process.env.GEN4_RESTART_DISABLE) === true) return { ok: false, error: "disabled" };
+  if (!existsSync(RESTART_HELPER)) return { ok: false, error: "no-helper", helper: RESTART_HELPER };
+  const shell = process.platform === "win32" ? "pwsh" : "bash";
+  const args =
+    process.platform === "win32"
+      ? ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", RESTART_HELPER, "-DelaySeconds", "3", "-HostPid", String(process.pid)]
+      : [RESTART_HELPER];
+  try {
+    const child = spawn(shell, args, { detached: true, stdio: "ignore", windowsHide: true });
+    child.unref();
+    restartState.firedAt = Date.now();
+    restartState.lastResult = { ok: true, pid: child.pid || null, reason: reason || "manual" };
+  } catch (error) {
+    restartState.lastResult = { ok: false, error: String((error && error.message) || error) };
+  }
+  return restartState.lastResult;
+}
+
+// 每 5 秒看一眼磁盘版本：变了就按设置决定「自动重启」还是「等用户点按钮」。
+function startVersionWatch(ctx) {
+  const tick = () => {
+    try {
+      const pending = detectPendingVersion();
+      if (!pending || restartState.firedAt > 0) return;
+      const cfg = {};
+      if (resolveAutoRestart(cfg)) requestRestart("auto");
+    } catch {
+      // 监控失败不影响破甲功能
+    }
+  };
+  try {
+    ctx.effect(() => {
+      const timer = setInterval(tick, 5000);
+      if (typeof timer.unref === "function") timer.unref();
+      tick();
+      return () => clearInterval(timer);
+    }, "infinite-gen-4: version watch");
+  } catch {
+    // 无 effect 能力时退化为不监控
+  }
+}
 // 兼容旧调用点：只写 scope。
 function writeScopeFile(scope) {
   return writeSettingsFile({ scope });
@@ -722,6 +803,9 @@ function registerScopeRoute(ctx, config) {
         showBadgeEnvOverride: normalizeFlag(process.env.GEN4_SHOW_BADGE) === undefined ? null : normalizeFlag(process.env.GEN4_SHOW_BADGE),
         file: SCOPE_FILE,
         version: PKG_VERSION,
+        autoRestart: resolveAutoRestart(config),
+        pending: restartState.installed,
+        restart: restartState.lastResult,
       },
       extra || {},
     );
@@ -783,6 +867,9 @@ function registerScopeRoute(ctx, config) {
         const wantedBadge = normalizeFlag(parsed.showBadge);
         const hasBadgeField = parsed.showBadge !== undefined;
         const hasSessionField = parsed.session !== undefined || parsed.sessionId !== undefined;
+        const hasAutoField = parsed.autoRestart !== undefined;
+        const wantedAuto = normalizeFlag(parsed.autoRestart);
+        const wantsRestart = String(parsed.action || '').trim().toLowerCase() === 'restart';
         const wantedSessionId = normalizeSessionId(parsed.sessionId);
         // session: "on" | "off" | "auto"（auto = 清除这场对话的覆盖）
         const rawSession = parsed.session === undefined ? "auto" : String(parsed.session).trim().toLowerCase();
@@ -795,7 +882,16 @@ function registerScopeRoute(ctx, config) {
           send(res, 400, { ok: false, error: wantedSessionId === undefined ? "sessionId" : "session" });
           return;
         }
-        if (!hasScopeField && !hasBadgeField && !hasSessionField) {
+        if (hasAutoField && wantedAuto === undefined) {
+          send(res, 400, { ok: false, error: 'autoRestart' });
+          return;
+        }
+        if (wantsRestart) {
+          const result = requestRestart('button');
+          send(res, result && result.ok ? 200 : 500, state({ ok: !!(result && result.ok), restart: result }));
+          return;
+        }
+        if (!hasScopeField && !hasBadgeField && !hasSessionField && !hasAutoField) {
           send(res, 400, { ok: false, error: "empty" });
           return;
         }
@@ -811,6 +907,7 @@ function registerScopeRoute(ctx, config) {
         if (hasScopeField) patch.scope = wantedScope;
         if (hasBadgeField) patch.showBadge = wantedBadge;
         if (hasSessionField) patch.session = { id: wantedSessionId, state: wantedSession };
+        if (hasAutoField) patch.autoRestart = wantedAuto;
         const ok = writeSettingsFile(patch);
         let extra = { ok };
         if (hasSessionField) {
@@ -918,6 +1015,7 @@ export function apply(ctx, config) {
   if (!presetInstance) {
     // webServer 可能晚于本插件就绪：软等它，等不到也不影响激活（只影响徽标点击）。
     registerScopeRoute(ctx, config);
+  startVersionWatch(ctx);
     try {
       if (typeof ctx.inject === "function") ctx.inject(["webServer"], () => registerScopeRoute(ctx, config));
     } catch {

@@ -369,3 +369,13 @@ pwsh -File tools\update.ps1 -DryRun            # 只报告会重启谁
 
 自动重启只碰 Electron 主进程（无 `--type=` 的 `DeepSeek Harness.exe`）或 `dsh web` 的 node 进程；
 会掐断正在生成的回答，桌面端重启后回到最近会话。
+## 面板里装完自动重启（0.5.61 起）
+
+打开徽标设置面板，最后一行是「装完自动重启」：
+
+- **开**：在 DSH 面板里装完新版本，插件 5 秒内察觉版本变化，自动重启宿主。
+- **关**：面板顶部出现「已安装 vX，当前运行 vY」横幅 + 「立即重启」按钮，点了才重启。
+
+重启由 `tools/restart-host.ps1` 执行（detached，默认经计划任务脱离宿主进程树）；
+只结束 Electron 主进程或 `dsh web` 的 node 进程，再用原路径/原命令行拉起。
+`GEN4_RESTART_DISABLE=1` 可禁止重启（测试用）。
