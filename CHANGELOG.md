@@ -1,5 +1,55 @@
 # CHANGELOG
 
+## 0.5.59 — 2026-10-25 · 修 P1：经域名 / 反代 / 局域网访问时设置面板完全写不进去
+
+### 报告（可复现，来自真实部署）
+经 `--trusted-host ds.ys.wiki` 的反向代理访问 Web GUI 时，破甲设置面板的三个开关全部保存失败
+（徽标显示「保存失败，请重试」，4 秒后恢复）；设置文件 `.dsh-infinite-gen-4.json` **从未生成**。
+本机 `curl 127.0.0.1:3080` 一切正常——这是作者自测最容易漏掉的组合。
+
+命令行等价复现：
+
+```bash
+curl -s -X POST http://127.0.0.1:3080/gen4/scope \
+  -H 'Host: ds.ys.wiki' -H 'Origin: https://ds.ys.wiki' \
+  -H 'content-type: application/json' -d '{"showBadge":true}'
+# 旧版 → 403 {"ok":false,"error":"origin"}；把 Origin 换成 http://127.0.0.1:3080 → 200
+```
+
+### 根因
+`sameOrigin()` 把「同源」硬编码成回环白名单（`127.0.0.1 / localhost / ::1`），从不参考本次请求的
+`Host`。宿主 `--trusted-host` 只是「让这个域名进得来」，插件在门内又加了一道只认回环的锁，
+于是合法同源请求被判成跨站。**波及所有非回环入口**：自定义域名、Cloudflare Tunnel、nginx 反代、
+`--host 0.0.0.0` 后的局域网 IP、移动端访问；三个写入路径（scope / showBadge / sessions）全断。
+
+### 修法
+- `sameOrigin()` 改为比对 **Origin 的 authority** 与本次请求的 `Host`（以及反代给的
+  `X-Forwarded-Host`、显式 `GEN4_TRUSTED_HOSTS` 列表）；`dsh-app:` 与回环地址照旧放行。
+- 默认端口归一：`https://host` 与 `Host: host:443` 视为同源（`http`/`:80` 同理）。
+- 安全边界不放宽：`Sec-Fetch-Site: cross-site`、`Origin: null`、与 Host 不一致的域名、
+  后缀伪装（`ds.ys.wiki.evil.com`）、端口不同、拿不到 Host 的请求——全部仍然拒绝。
+- 前端把服务端错误码透出来（`origin / method / empty / scope / showBadge / sessionId / session`），
+  不再统一显示「保存失败，请重试」；面板底部显示插件版本，便于确认装的是哪一版。
+
+### 证据（红绿对照）
+`node .diag/defect059/origin.test.mjs`（真 http 服务器 + 真 Host/Origin 头）：
+
+- **新版 15/15 PASS**：反代域名 200 且真的落盘、回环 200、局域网 IP 200、`X-Forwarded-Host` 200、
+  默认端口归一 200、无 Origin 的脚本请求 200、GET 不受影响。
+- **旧版（0.5.58 发布件）11/15**，其中 T01 反代域名稳定 403 `origin` → **bug 复现**，
+  证明因果而非「改完看起来好了」。
+- 回归：`client_static` 38/38、契约测试 29/29、徽标点击 9/9；`node --check` 双 0。
+
+### 影响面
+- 只改同源判定与前端错误提示；提示词 `b37-lite.md` 22,113 B 逐字节未改，注入逻辑未动。
+- 0.5.58 之前的版本在此环境**本来就不可写**，升级到 0.5.59 后无需改配置。
+
+### 升级
+```powershell
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.59
+```
+装完必须重启宿主（`dsh web` 进程或桌面端）。
+
 ## 0.5.58 — 2026-10-24 · 删掉「恢复默认」按钮，改由代码自动收尾
 
 ### 用户追问

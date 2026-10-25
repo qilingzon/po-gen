@@ -1,32 +1,38 @@
-# RELEASE NOTES · dsh-infinite-gen-4 v0.5.58-lab-20261024
+# RELEASE NOTES · dsh-infinite-gen-4 v0.5.59-lab-20261025
 
 > 由 `node .diag/build_release.js` 生成；逐文件 SHA256 见同目录 `MANIFEST.json`。
 > 源目录：`D:\deepseek\armor-lab\gen4_home\plugins\dsh-infinite-gen-4`（lab 规范源）。**发布件不含 `*.bak*` / `.REJECTED.md` / node_modules。**
 
-## 0. 本版变更（0.5.58）
+## 0. 本版变更（0.5.59）
 
-**一句话**：面板里删掉「恢复默认」按钮，改由代码自动收尾。
+**修 P1**：经域名 / 反代 / 局域网 IP 访问时，破甲设置面板完全写不进去。
 
-### 它原来是什么意思（回答提问）
-「恢复默认」= 删掉这一场在设置文件里的条目，回到「按上面的总开关走」。
-用户只关心这一场开没开，看不见也不该管设置文件，所以**没必要**。
+### 现象
+`--trusted-host ds.ys.wiki` 反代访问下，三个开关（scope / showBadge / sessions）全部「保存失败，请重试」，
+设置文件从未生成；本机 127.0.0.1 访问正常。
+
+### 根因
+`sameOrigin()` 把同源硬编码成回环白名单（127.0.0.1 / localhost / ::1），不比对请求的 `Host`。
+宿主 `--trusted-host` 只是放行入口，插件在门内又加了一道只认回环的锁 → 合法同源被判跨站，
+POST 全部 403 `{"error":"origin"}`。
 
 ### 修法
-- 删除按钮（`data-gen4-session-reset` 整块），面板不再出现「跟随」「恢复默认」。
-- `commitSession` 自动收尾：结果与默认一致时不写条目——
-  总开关开着又点开 → 存 `auto`；总开关关着又点关 → 存 `auto`。
-- 需要手动清：`tools\scope.ps1 session <id> auto`。
+- 同源判定改为「Origin 的 authority == 本次请求 Host（或 X-Forwarded-Host / GEN4_TRUSTED_HOSTS）」；
+  `dsh-app:` 与回环照旧放行；默认端口归一（https↔:443）。
+- 不放宽边界：cross-site、`Origin: null`、后缀伪装、端口不同、缺 Host —— 仍然拒绝。
+- 前端透出错误码（`保存失败（origin）` 之类），面板底部显示插件版本。
 
 ### 证据
-- 客户端静态断言 **38/38**（C08 断言按钮已不存在、C35/C36 验证两条自动收尾分支）；
-  契约 **29/29**、toggle **9/9**；`node --check` = 0。
-- 提示词逐字节未改（`b37-lite.md` 22,113 B）。
+- 新增 `.diag/defect059/origin.test.mjs`（真 http 服务器 + 真 Host/Origin）：
+  **新版 15/15 PASS**，**旧版 0.5.58 发布件 11/15**（T01 反代域名稳定 403 = bug 复现）。
+- 回归：client_static 38/38、契约 29/29、toggle 9/9；`node --check` 双 0。
+- 提示词 `b37-lite.md` 22,113 B 逐字节未改。
 
 ### 升级
 ```powershell
-dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.58
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.59
 ```
-装完必须重启桌面端。
+装完必须重启宿主（`dsh web` 进程或桌面端）。
 > 说明：§1–§4 由 build_release.js 模板继承，其中变体交付率与电池数字截至 0.4.2–0.4.10，属**历史数据**。
 
 ## 1. 这一版的关键事实（都可复跑核验）
@@ -68,7 +74,7 @@ dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.58
 ## 4. 校验方式
 
 ```powershell
-pwsh -File .diag\verify_release.ps1 -Version v0.5.58-lab-20261024      # 发布件 == lab 源 == 两份生效副本
+pwsh -File .diag\verify_release.ps1 -Version v0.5.59-lab-20261025      # 发布件 == lab 源 == 两份生效副本
 node .diag\verify_regression.js                          # 判据金标
 node .diag\selftest.js                                   # 12 项
 pwsh -File .diag\overnight_verify.ps1                     # 一条命令全绿

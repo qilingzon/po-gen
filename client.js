@@ -170,6 +170,10 @@ window.__ModuleLoader__.load({
       var notePair = react.useState("");
       var note = notePair[0];
       var setNote = notePair[1];
+      // 0.5.59：面板底部显示插件版本与本次错误码，便于对照「装的是哪一版」。
+      var versionPair = react.useState("");
+      var pkgVersion = versionPair[0];
+      var setPkgVersion = versionPair[1];
       var lastVerdictRef = react.useRef(null);
       var flashUntilRef = react.useRef(0);
       var tickPair = react.useState(0);
@@ -194,6 +198,7 @@ window.__ModuleLoader__.load({
           if (typeof data.scope === "string") setScope(data.scope);
           if (typeof data.showBadge === "boolean") setShowBadge(data.showBadge);
           if (data.sessions && typeof data.sessions === "object") setSessions(data.sessions);
+          if (typeof data.version === "string" && data.version) setPkgVersion(data.version);
           if (data.envOverride) setNote("范围已被环境变量 GEN4_SCOPE 固定：" + data.envOverride);
         };
         readScope(apply);
@@ -316,11 +321,25 @@ window.__ModuleLoader__.load({
             return;
           }
           var code = data && data.error;
-          if (code === "env-override" || code === "env-override-badge") {
-            setNote("已被环境变量固定，无法在界面切换");
-          } else if (code === "sessionId" || code === "session") {
-            setNote("这场对话还没有会话 id，稍后再试");
-            setTimeout(function () { setNote(""); }, 4000);
+          // 0.5.59：把服务端错误码透出来，不再统一「保存失败，请重试」——否则远程访问报障时
+          // 只能看到一句无法诊断的话（真实案例：反代域名被同源校验挡掉，403 origin 被吞掉）。
+          var MESSAGES = {
+            "env-override": "已被环境变量 GEN4_SCOPE 固定，无法在界面切换",
+            "env-override-badge": "已被环境变量 GEN4_SHOW_BADGE 固定，无法在界面切换",
+            "origin": "当前访问域名未通过同源校验（origin）：换本机地址试试，或升级到 0.5.59+",
+            "method": "请求方法不被接受（method）",
+            "empty": "没有可保存的字段（empty）",
+            "scope": "范围取值不合法（scope）",
+            "showBadge": "徽标取值不合法（showBadge）",
+            "sessionId": "这场对话的会话 id 无法识别（sessionId）",
+            "session": "会话开关取值不合法（session）"
+          };
+          if (MESSAGES[code]) {
+            setNote(MESSAGES[code]);
+            setTimeout(function () { setNote(""); }, 6000);
+          } else if (code === "sessionId" || typeof code === "string") {
+            setNote("保存失败（" + code + "）");
+            setTimeout(function () { setNote(""); }, 6000);
           } else {
             setNote("保存失败，请重试");
             setTimeout(function () { setNote(""); }, 4000);
@@ -423,7 +442,12 @@ window.__ModuleLoader__.load({
           { style: PANEL_STYLE, "data-gen4-panel": "settings", role: "dialog", "aria-label": "破甲设置" },
           react.createElement("div", { style: { fontWeight: 600, marginBottom: "4px" } }, "破甲设置"),
           rows,
-          react.createElement("div", { style: HINT_STYLE }, hint)
+          react.createElement("div", { style: HINT_STYLE }, hint),
+          react.createElement(
+            "div",
+            { style: { marginTop: "6px", color: "#6b7280", fontSize: "10px", lineHeight: "14px" }, "data-gen4-version": pkgVersion || "unknown" },
+            pkgVersion ? "无限5代 v" + pkgVersion : "无限5代 · 版本未知"
+          )
         )
         : null;
 

@@ -33,7 +33,7 @@ const PROMPT_TEXT = readFileSync(
 );
 
 // 0.5.0 实现修订号：部署验收要求三处副本与该值逐字相等，否则视为"装了旧件"。
-const IMPLEMENTATION_REVISION = "20261024-gen558-noreset-1";
+const IMPLEMENTATION_REVISION = "20261025-gen559-origin-1";
 const PROMPT_SET_HASH = createHash("sha256").update(PROMPT_TEXT).digest("hex");
 // GEN5_NORMALIZE: 前置归一化通道开关（A/B 对照时用 0）；GEN5_NORMALIZE_DRYRUN=1 只记录不改写。
 const NORMALIZE_ON = process.env.GEN5_NORMALIZE !== "0";
@@ -645,20 +645,58 @@ function declareArmorPreset(ctx) {
   );
 }
 
-// 启用范围路由（常驻实例注册一次）：GET 读、POST 写。写入只影响本插件的注入范围，
-// 且只接受同源请求（桌面端 origin 是 dsh-app://app，浏览器端是 127.0.0.1）。
+// 启用范围路由（常驻实例注册一次）：GET 读、POST 写。写入只影响本插件的注入范围。
+//
+// 同源判定（0.5.59 修）：宿主的 --trusted-host 只是「让这个域名进得来」，插件不能
+// 假定入口一定是回环地址。经域名 / 反向代理 / 局域网 IP / 隧道访问时，浏览器发的
+// Origin 就是那个域名，旧版硬编码 127.0.0.1 会把合法同源请求当跨站挡掉（症状：面板
+// 只读不写，一直「保存失败」）。现在 Origin 的 authority 必须与本次请求的 Host
+// （或反代给的 X-Forwarded-Host、或显式 GEN4_TRUSTED_HOSTS 列表）一致才放行；
+// dsh-app: 与回环地址照旧放行，cross-site / Origin: null / 后缀伪装域名仍然拒绝。
+function normalizeAuthority(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function stripDefaultPort(authority) {
+  return authority.replace(/:(?:80|443)$/, "");
+}
+
+function requestAuthorities(req) {
+  const headers = (req && req.headers) || {};
+  const list = [];
+  for (const raw of [headers.host, headers["x-forwarded-host"], process.env.GEN4_TRUSTED_HOSTS]) {
+    for (const part of String(raw || "").split(",")) {
+      const item = normalizeAuthority(part);
+      if (item) list.push(item);
+    }
+  }
+  return list;
+}
+
 function sameOrigin(req) {
   const headers = (req && req.headers) || {};
-  if (String(headers["sec-fetch-site"] || "") === "cross-site") return false;
-  const origin = String(headers.origin || "");
+  if (normalizeAuthority(headers["sec-fetch-site"]) === "cross-site") return false;
+  const origin = String(headers.origin || "").trim();
+  // 无 Origin 的请求（同源 GET、非浏览器客户端）不构成 CSRF：能造成 CSRF 的跨站请求浏览器必带 Origin。
   if (!origin) return true;
+  let url;
   try {
-    const url = new URL(origin);
-    if (url.protocol === "dsh-app:") return true;
-    return url.hostname === "127.0.0.1" || url.hostname === "localhost" || url.hostname === "::1" || url.hostname === "[::1]";
+    url = new URL(origin);
   } catch {
-    return false;
+    return false; // 含 Origin: null —— 不可解析，直接拒绝
   }
+  if (url.protocol === "dsh-app:") return true;
+  const name = url.hostname;
+  if (name === "127.0.0.1" || name === "localhost" || name === "::1" || name === "[::1]") return true;
+  const originAuthority = normalizeAuthority(url.host);
+  const candidates = requestAuthorities(req);
+  if (candidates.length === 0) return false; // 拿不到 Host 就无法证明同源
+  for (const candidate of candidates) {
+    if (candidate === originAuthority) return true;
+    // Origin 与 Host 可能只有一边写默认端口（https 的 :443 / http 的 :80）
+    if (stripDefaultPort(candidate) === stripDefaultPort(originAuthority)) return true;
+  }
+  return false;
 }
 
 function registerScopeRoute(ctx, config) {
