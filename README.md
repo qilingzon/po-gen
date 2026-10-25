@@ -355,3 +355,17 @@ dsh-infinite-gen-4/
 
 
 
+
+## 装完自动重启（0.5.60 起）
+
+`tools/update.ps1` 带 `-Restart`：
+
+```powershell
+pwsh -File tools\update.ps1 -Restart auto      # 装完直接重启
+pwsh -File tools\update.ps1                    # 默认 prompt，问一句
+pwsh -File tools\update.ps1 -Restart never     # 只提示不重启
+pwsh -File tools\update.ps1 -DryRun            # 只报告会重启谁
+```
+
+自动重启只碰 Electron 主进程（无 `--type=` 的 `DeepSeek Harness.exe`）或 `dsh web` 的 node 进程；
+会掐断正在生成的回答，桌面端重启后回到最近会话。

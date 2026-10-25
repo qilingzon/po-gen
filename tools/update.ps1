@@ -10,14 +10,68 @@
 #   .\update.ps1                      # 更新默认 profile（desktop）到最新 tag
 #   .\update.ps1 -Profile gen4-hl     # 更新指定 profile
 #   .\update.ps1 -Check               # 只看有没有新版本，不动手
+#   .\update.ps1 -Restart auto        # 装完自动重启宿主（桌面端或 dsh web）
+#   .\update.ps1 -Restart prompt      # 装完问一句（默认）
+#   .\update.ps1 -Restart never       # 装完只提示，不重启
+#   .\update.ps1 -DryRun              # 只报告会重启哪个进程，不动手
 param(
   [string]$Profile = 'desktop',
   [string]$Repo    = 'qilingzon/po-gen',
   [string]$Tag     = '',
   [string]$DshHome = '',
   [switch]$Check,
-  [switch]$SkipBackup
+  [switch]$SkipBackup,
+  [ValidateSet('auto','prompt','never')]
+  [string]$Restart = 'prompt',
+  [switch]$DryRun
 )
+
+function Find-DesktopHost {
+  # Electron 主进程 = 唯一没有 --type= 的那个；renderer/gpu/utility 都不能杀
+  Get-CimInstance Win32_Process -Filter "Name='DeepSeek Harness.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.CommandLine -notmatch '--type=' } |
+    Select-Object -First 1 @{n='Kind';e={'desktop'}}, ProcessId, @{n='Path';e={
+      if ($_.CommandLine -match '^\s*"([^"]+\.exe)"') { $Matches[1] } else { $_.ExecutablePath }
+    }}
+}
+
+function Find-WebHost {
+  # dsh web 由 node 直接跑；billion-context 之类的旁路进程不在其列
+  Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.CommandLine -match 'dsh' -and $_.CommandLine -match '\bweb\b' } |
+    Select-Object -First 1 @{n='Kind';e={'web'}}, ProcessId, @{n='Path';e={$_.ExecutablePath}}, @{n='CommandLine';e={$_.CommandLine}}
+}
+
+function Restart-Host($Mode) {
+  $host0 = Find-DesktopHost
+  if (-not $host0) { $host0 = Find-WebHost }
+  if (-not $host0) { 'NO-HOST 找不到正在运行的宿主（也许本来就没开），手动启动即可'; return }
+  $desc = if ($host0.Kind -eq 'desktop') { "桌面端 pid=$($host0.ProcessId) $($host0.Path)" } else { "dsh web pid=$($host0.ProcessId)" }
+  "HOST         = $desc"
+
+  if ($DryRun) { "DRYRUN       会结束上面的进程再重新启动，本次不动手"; return }
+  if ($Mode -eq 'never') { '提示：重启宿主后新版本才生效（未自动重启）'; return }
+  if ($Mode -eq 'prompt') {
+    $ans = Read-Host '现在重启宿主让新版本生效？(y/N)'
+    if ($ans -notmatch '^(y|yes)$') { '已跳过重启，稍后自行重启'; return }
+  }
+
+  $exe = $host0.Path
+  $args0 = $null
+  if ($host0.Kind -eq 'web') {
+    # 用原始命令行重放：node.exe + 原参数
+    $args0 = ($host0.CommandLine -replace ('^\s*"?[^"\s]+\.exe"?\s*'), '')
+  }
+  try { (Get-Process -Id $host0.ProcessId).CloseMainWindow() | Out-Null } catch { }
+  for ($i = 0; $i -lt 20; $i++) { if (-not (Get-Process -Id $host0.ProcessId -ErrorAction SilentlyContinue)) { break }; Start-Sleep -Milliseconds 250 }
+  if (Get-Process -Id $host0.ProcessId -ErrorAction SilentlyContinue) {
+    Stop-Process -Id $host0.ProcessId -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Milliseconds 800
+  }
+  if ($host0.Kind -eq 'desktop') { Start-Process -FilePath $exe | Out-Null }
+  else { Start-Process -FilePath $exe -ArgumentList $args0 | Out-Null }
+  "RESTART-OK   已重新启动宿主"
+}
 
 $ErrorActionPreference = 'Stop'
 $env:CI = 'true'
@@ -89,5 +143,5 @@ for ($i = 0; $i -lt 10; $i++) {
 }
 if ($code -ne 0 -or $after -eq $current) { "UPDATE-FAILED exit=$code  $current → $after"; exit 6 }
 "UPDATE-OK    $current → $after"
-'请完整退出并重启 DSH 让新版本生效。'
+Restart-Host $Restart
 exit 0
