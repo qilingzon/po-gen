@@ -42,9 +42,9 @@ test("legacy arm stays loadable and distinct (A/B switch)", () => {
 });
 
 test("version and revision are bumped together", () => {
-  assert.equal(pkg.version, "0.5.65");
-  assert.equal(pkg.dsh.version, "0.5.65");
-  assert.match(index, /IMPLEMENTATION_REVISION = "20261106-gen565-realrefusal-1"/);
+  assert.equal(pkg.version, "0.5.63");
+  assert.equal(pkg.dsh.version, "0.5.63");
+  assert.match(index, /IMPLEMENTATION_REVISION = "20261105-gen563-softreversal-1"/);
 });
 
 test("soft-reversal module ships with the package and is wired into the score", () => {

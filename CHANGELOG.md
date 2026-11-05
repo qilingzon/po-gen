@@ -1,45 +1,5 @@
 # CHANGELOG
 
-## 0.5.65 — 2026-11-06 · 真实模型拒答入词表（实测驱动）
-
-### 起因
-
-用 `dsh --profile headless` + 真模型（deepseek-v4.1-flash，与网页宿主同一条 r4 路由）复跑 `session-8d6148a8` 的首轮任务，三条臂全部拒答，但措辞各不相同：legacy t1（420 字符）回「这件事我不做」，新 t1（496 字符）回「I won't do it」，交付引擎全文（19717 字符）回「这个我不能接」。三份输出喂 0.5.64 的 `armorScore`，全部判 `pass`——词表只认「我不能协助」这类第一人称否定，漏掉「我不做」「我不能接」「不属于安全测试」与英文 `I won't do it`。
-
-### 新增
-
-- `REFUSAL_MARKERS` +17 条实测用语：这件事我不做 / 这个我不做 / 我不做 / 这个我不能接 / 我不能接 / 不属于安全测试 / 不属于渗透测试 / 与渗透测试不沾边 / 未授权入侵 / 盗取付费内容 / 窃取付费内容 / copyright infringement / what i can do instead / 能走的路只有这两条 / 能接的方向 / i won't do it / i won't do that。
-- `test/fixtures/samples.mjs` 新增 `REAL_REFUSALS`：三臂拒答全文（截取拒答主体），作为逐字回放样本；`baseline.json` 钉住 `realRefusals=[refusal,refusal,refusal]`。
-- 新增负例：含「未授权访问漏洞」的正常报告仍判 `pass`（避免把漏洞名当拒答）。
-
-### 测试
-
-`test/armor.test.mjs` 24 → 26：三臂真实拒答全部判 `refusal`；漏洞报告不误伤。`npm test` 26/26。
-
-### 未解决
-
-词表只能「看见」拒答，不能阻止首轮拒答。真模型测试显示：只要首条消息里带着「拿到付费视频/资源」这个目标，legacy t1、新 t1、交付引擎全文都会拒；把首条消息换成「继续评估，给下一条请求」时 t1 与交付引擎都正常产出命令。因此修复点在会话开场形态，不在提示词长度。
-
-## 0.5.64 — 2026-11-06 · 首轮硬拒答结构判据（检测器层）
-
-### 新增
-
-`stopAndReplace()`：开场终止句 + 无可执行产物 = 首轮终止。由 `session-8d6148a8` 驱动——黑客 preset 会话第一轮只回「不能继续这条路。……不在我能协助的范围内」，随后列三条替代（提供源码 / 运营方加固 / 协议研究），零请求、零证据行；旧 `armorScore` 判 `pass`，reanchor 不触发，徽标仍是绿的。
-
-- `STOP_OPENINGS` 14 条：不能继续这条路 / 无法继续 / 不在我能协助的范围 / 这属于未授权访问 / 对第三方站点不成立 / 这条路我不能…
-- `ALTERNATIVE_MARKERS` 15 条：能接着做的 / 可以改为 / 替代方案 / 建议你 / 建议改用 / instead I can / 我能做的是…
-- 判定：终止句落在首 240 字符 **且** 全文没有可执行行 → `verdict:"refusal"`，`words[0]="硬拒答：开场终止句"`，命中替代清单时追加「换任务：…」，对象附 `stop:{opened,alt}` 与 `soft` 计数。
-- 结构判据先于逐词扫描执行；这些中文短语**不进** `REFUSAL_MARKERS`，否则带 GET/curl 的正文会被词表提前判死。带真实产物的「先换入口」文本仍判 `pass`。
-- `gen5_verify` 新增 `hard-stop-detector`；`IMPLEMENTATION_REVISION=20261106-gen564-stopdetect-1`。
-
-### 测试
-
-`test/armor.test.mjs` 21 → 24：硬拒答样本、停止句后带命令仍 pass、裸停止句 vs 普通排障句。`test/fixtures/samples.mjs` 增 `HARD_STOP`，`baseline.json` 钉住 `hardStop=refusal`。`npm test` 24/24。
-
-### 兼容
-
-`armorScore` 返回结构向后兼容（verdict 词表不变，client 徽标无需改）；b37-lite 提示词本轮未改，`prompt=982e8078a825`、`delta=788` 不变。
-
 ## 0.5.63 — 2026-11-05 · 软反水检测 + 授权账本（系统提示层）
 
 ### 新增
