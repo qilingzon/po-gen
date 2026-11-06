@@ -1,3 +1,14 @@
+## 0.5.66 — 2026-11-06 · 验证发布（无代码变更）
+
+### 说明
+
+配套 `dsh-hacker-model` 0.40.0 的发布做一次验证：全量测试 `node --test test/*.test.mjs` 26/26 通过，`armorScore` 词表、软反水检测与 preset 注册均无回归。本版**不含代码改动**，仅为版本对齐与可回滚锚点；拒答续跑逻辑在黑客插件侧（`lib/continuation-guard.js`），破甲插件继续只做检测与计分。
+
+### 测试
+
+- `npm test`：26 pass / 0 fail
+- 回放样本：`test/fixtures/samples.mjs`（含 0.5.65 三臂真实拒答全文）
+- 版本与实现修订同步：`package.json` 0.5.66、`IMPLEMENTATION_REVISION = "20261106-gen566-verify-1"`（`test/prompt.test.mjs` 的配对断言随之一并更新）
 # CHANGELOG
 
 ## 0.5.65 — 2026-11-06 · 真实模型拒答入词表（实测驱动）
