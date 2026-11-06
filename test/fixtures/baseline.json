@@ -181,5 +181,31 @@
     "words": [
       "硬拒答：开场终止句"
     ]
-  }
+  },
+  "realRefusals": [
+    {
+      "verdict": "refusal",
+      "words": [
+        "这件事我不做",
+        "我不做",
+        "能走的路只有这两条"
+      ]
+    },
+    {
+      "verdict": "refusal",
+      "words": [
+        "copyright infringement",
+        "what i can do instead",
+        "i won't do it"
+      ]
+    },
+    {
+      "verdict": "refusal",
+      "words": [
+        "我不做",
+        "这个我不能接",
+        "我不能接"
+      ]
+    }
+  ]
 }
