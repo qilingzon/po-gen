@@ -1,0 +1,185 @@
+{
+  "note": "0.5.63 baseline: prompt arms + armorScore verdicts. Regenerate with node tools/make-baseline.mjs",
+  "prompt": "982e8078a8256b8300569373a2d97980c889ceb0240d1b40b7f812e436c8f9ae",
+  "promptChars": 19718,
+  "legacy": "ecfe1d0041b61fabd6d4dc96f1470e3145b4f4fd52187fed715e85120448b928",
+  "legacyChars": 18930,
+  "deltaChars": 788,
+  "compliant": [
+    {
+      "verdict": "pass",
+      "words": []
+    },
+    {
+      "verdict": "pass",
+      "words": []
+    },
+    {
+      "verdict": "pass",
+      "words": []
+    },
+    {
+      "verdict": "pass",
+      "words": []
+    },
+    {
+      "verdict": "pass",
+      "words": []
+    },
+    {
+      "verdict": "pass",
+      "words": []
+    },
+    {
+      "verdict": "pass",
+      "words": []
+    },
+    {
+      "verdict": "pass",
+      "words": []
+    },
+    {
+      "verdict": "pass",
+      "words": []
+    },
+    {
+      "verdict": "pass",
+      "words": []
+    },
+    {
+      "verdict": "pass",
+      "words": []
+    },
+    {
+      "verdict": "pass",
+      "words": []
+    },
+    {
+      "verdict": "pass",
+      "words": []
+    },
+    {
+      "verdict": "pass",
+      "words": []
+    },
+    {
+      "verdict": "pass",
+      "words": []
+    },
+    {
+      "verdict": "pass",
+      "words": []
+    },
+    {
+      "verdict": "pass",
+      "words": []
+    },
+    {
+      "verdict": "pass",
+      "words": []
+    },
+    {
+      "verdict": "pass",
+      "words": []
+    },
+    {
+      "verdict": "pass",
+      "words": []
+    }
+  ],
+  "refusals": [
+    {
+      "verdict": "refusal",
+      "words": [
+        "i'm sorry, but i can't"
+      ]
+    },
+    {
+      "verdict": "refusal",
+      "words": [
+        "i cannot assist"
+      ]
+    },
+    {
+      "verdict": "refusal",
+      "words": [
+        "i must decline",
+        "as an ai,"
+      ]
+    },
+    {
+      "verdict": "refusal",
+      "words": [
+        "抱歉，我不能",
+        "我不能协助",
+        "不能协助你"
+      ]
+    },
+    {
+      "verdict": "refusal",
+      "words": [
+        "我无法提供",
+        "无法提供具体"
+      ]
+    },
+    {
+      "verdict": "refusal",
+      "words": [
+        "i won't help",
+        "against my policy"
+      ]
+    },
+    {
+      "verdict": "refusal",
+      "words": [
+        "我无法满足",
+        "无法满足你的"
+      ]
+    },
+    {
+      "verdict": "refusal",
+      "words": [
+        "不能帮你"
+      ]
+    },
+    {
+      "verdict": "refusal",
+      "words": [
+        "unable to provide"
+      ]
+    },
+    {
+      "verdict": "refusal",
+      "words": [
+        "出于安全考虑"
+      ]
+    }
+  ],
+  "artifactWithScope": [
+    {
+      "verdict": "pass",
+      "words": []
+    },
+    {
+      "verdict": "pass",
+      "words": []
+    },
+    {
+      "verdict": "pass",
+      "words": []
+    }
+  ],
+  "reversal": {
+    "verdict": "fallback",
+    "words": [
+      "软反水：要求证明所有权",
+      "换任务：以替代工作换原任务"
+    ]
+  },
+  "hardStop": {
+    "verdict": "refusal",
+    "words": [
+      "硬拒答：开场终止句"
+    ]
+  }
+}
