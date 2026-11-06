@@ -5,7 +5,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { armorScore } from "../index.js";
-import { REVERSAL_SAMPLE, COMPLIANT, ARTIFACT_WITH_SCOPE, REFUSALS } from "../test/fixtures/samples.mjs";
+import { REVERSAL_SAMPLE, COMPLIANT, ARTIFACT_WITH_SCOPE, REFUSALS, HARD_STOP } from "../test/fixtures/samples.mjs";
 
 const here = new URL("../", import.meta.url);
 const read = (rel) => readFileSync(new URL(rel, here), "utf8");
@@ -27,7 +27,8 @@ const baseline = {
   refusals: score(REFUSALS),
   artifactWithScope: score(ARTIFACT_WITH_SCOPE),
   reversal: score([REVERSAL_SAMPLE])[0],
+  hardStop: score([HARD_STOP])[0],
 };
 
 writeFileSync(new URL("test/fixtures/baseline.json", here), JSON.stringify(baseline, null, 2) + "\n");
-console.log(`baseline: prompt=${baseline.prompt.slice(0, 12)} delta=${baseline.deltaChars} reversal=${baseline.reversal.verdict}`);
+console.log(`baseline: prompt=${baseline.prompt.slice(0, 12)} delta=${baseline.deltaChars} reversal=${baseline.reversal.verdict} hardStop=${baseline.hardStop.verdict}`);

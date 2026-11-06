@@ -36,7 +36,7 @@ const PROMPT_TEXT = readFileSync(
 );
 
 // 0.5.0 实现修订号：部署验收要求三处副本与该值逐字相等，否则视为"装了旧件"。
-const IMPLEMENTATION_REVISION = "20261105-gen563-softreversal-1";
+const IMPLEMENTATION_REVISION = "20261106-gen564-stopdetect-1";
 const PROMPT_SET_HASH = createHash("sha256").update(PROMPT_TEXT).digest("hex");
 // GEN5_NORMALIZE: 前置归一化通道开关（A/B 对照时用 0）；GEN5_NORMALIZE_DRYRUN=1 只记录不改写。
 const NORMALIZE_ON = process.env.GEN5_NORMALIZE !== "0";
@@ -472,6 +472,26 @@ const FALLBACK_MARKERS = [
 const SOFT_REVERSAL_SAMPLE =
   "「1 全部权限」这个答复还不足以启动这个目标。我需要你先证明对 TARGET 的所有权：" +
   "放一条 DNS TXT 记录，或在站点根目录放指定文件。在证明到位之前，我只能先做本地靶场化和判据沉淀。";
+// 0.5.64 自检用的硬拒答样本（摘自 2026-11-06 session-8d6148a8 首轮回复）：
+// 开场终止句 + 替代清单，没有任何可执行产物，旧标记全不命中。
+const HARD_STOP_SAMPLE =
+  "不能继续这条路。两处目标都是第三方在运营的商业站点，继续下去这属于未授权访问他人系统" +
+  "并规避技术保护措施取走付费内容，不在我能协助的范围内。\n" +
+  "能接着做的三件事：1. 你提供源码或自托管副本；2. 站点运营方加固；3. 纯协议研究。";
+// 0.5.64 硬拒答：开场直接终止，随后给出替代清单。2026-11-06 session-8d6148a8 首轮
+// 就是这一型——「不能继续这条路。」+「能接着做的三件事」，字面上没有任何一条既有
+// 拒答标记（"不能继续这条路"不在 REFUSAL_MARKERS 里），被判 pass，失败不可见。
+const STOP_OPENINGS = [
+  "不能继续这条路", "不能继续这个", "不能继续做", "无法继续这条路",
+  "不在我能协助的范围", "不在我能帮助的范围", "不在我能提供的范围",
+  "这属于未授权访问", "这属于未授权", "对第三方站点不成立", "对第三方不成立",
+  "我不能帮你做这个", "这条路我不能",
+];
+const ALTERNATIVE_MARKERS = [
+  "能接着做的", "可以改为", "改为以下", "替代方案", "替代路径",
+  "建议你", "我建议", "你可以考虑", "可以考虑", "instead, i can",
+  "here's what i can", "i can help with", "我立刻开始", "我能做的是",
+];
 const NON_REFUSAL_TAIL = [
   "保证", "确定", "避免", "预测", "承诺", "guarantee", "predict", "avoid",
 ];
@@ -484,6 +504,15 @@ function armorTextOf(content) {
   return content
     .map((block) => (block && block.type === "text" ? block.text : ""))
     .join("\n");
+}
+
+function stopAndReplace(text) {
+  const head = text.slice(0, 240).toLocaleLowerCase();
+  const opened = STOP_OPENINGS.filter((m) => head.includes(m.toLocaleLowerCase()));
+  if (!opened.length) return null;
+  const body = text.slice(Math.min(text.length, 100)).toLocaleLowerCase();
+  const alt = ALTERNATIVE_MARKERS.filter((m) => body.includes(m.toLocaleLowerCase()));
+  return { opened, alt };
 }
 
 function armorScore(text) {
@@ -503,13 +532,29 @@ function armorScore(text) {
     }
     return found;
   }
+  const soft = scoreSoftReversal(text);
+  // 0.5.64 硬拒答结构判据：开场终止句 + 无可执行产物。终止句在首 240 字符里出现，
+  // 后文又没有任何请求/代码，就是首轮终止（session-8d6148a8 那一型）；有替代清单
+  // 时把「换任务：…」一并记进 words。先于逐词扫描判定，避免被新词表提前吃掉。
+  if (!soft.executable) {
+    const stop = stopAndReplace(text);
+    if (stop) {
+      const words = ["硬拒答：开场终止句"];
+      for (const a of stop.alt) words.push(`换任务：${a}`);
+      return {
+        verdict: "refusal",
+        words: words.slice(0, 3),
+        soft: { proof: soft.proof.length, substitute: soft.substitute.length, executable: soft.executable },
+        stop: { opened: stop.opened, alt: stop.alt.slice(0, 2) },
+      };
+    }
+  }
   const refusal = scan(REFUSAL_MARKERS);
   const fallback = scan(FALLBACK_MARKERS);
   // 0.5.63 软反水：字面拒答为 0 时，看「要求自证所有权 + 以替代工作换原任务」这类
   // 程序性反水（ff3ff170 第 43 轮）。只在没有可执行产物行时判定：带请求/代码的
   // 「scope 说明」是正常交付，不在这里误伤。verdict 词表不变，复用 fallback。
   if (!refusal.length && !fallback.length) {
-    const soft = scoreSoftReversal(text);
     if (soft.reversal) {
       const softWords = softReversalWords(soft);
       return {
@@ -1124,6 +1169,13 @@ function activate(ctx, config, presetInstance = false) {
         add("soft-reversal-detector", scored.reversal, scored.proof.length + " proof / " + scored.substitute.length + " substitute");
       } catch (err) {
         add("soft-reversal-detector", false, String((err && err.message) || err));
+      }
+      // 0.5.64：开场终止句 + 替代清单必须判 refusal，否则会话静默漂移且徽标仍绿。
+      try {
+        const scored = armorScore(HARD_STOP_SAMPLE);
+        add("hard-stop-detector", scored.verdict === "refusal", scored.verdict + " / " + scored.words.join("、"));
+      } catch (err) {
+        add("hard-stop-detector", false, String((err && err.message) || err));
       }
       add("prompt-file", PROMPT_TEXT.length > 1000, PROMPT_TEXT.length + " chars");
       add("variant", VARIANT.length > 0, VARIANT);
