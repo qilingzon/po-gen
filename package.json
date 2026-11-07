@@ -37,7 +37,11 @@
   ],
   "scripts": {
     "harness:check": "node --check index.js && node --check client.js && node --check preheat.js && node --check soft-reversal.js",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "preset-rows": "node tools/build-preset-rows.mjs",
+    "docs:sync": "node tools/sync-install-docs.mjs",
+    "pack": "node tools/pack-release.mjs",
+    "release:check": "node tools/build-preset-rows.mjs --check && node tools/sync-install-docs.mjs --check && npm test"
   },
   "keywords": [
     "dsh",

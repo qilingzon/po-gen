@@ -3,7 +3,7 @@
 > DeepSeek Harness 插件：把「破甲模式」注册成一个**可选的 agent preset**。
 > 只有你显式选中它的会话才会注入交付引擎提示词；其他会话、其他模式**零注入**。
 
-[![version](https://img.shields.io/badge/version-0.5.59-2f6feb)](https://github.com/qilingzon/po-gen/releases)
+[![version](https://img.shields.io/badge/version-0.5.73-2f6feb)](https://github.com/qilingzon/po-gen/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-555)]
 
@@ -52,71 +52,62 @@ DSH 的两个位置先记住（下文用占位符表示）：
 - `$DSH_HOME`：默认 `C:\Users\<你>\.dsh`（Windows）或 `~/.dsh`（macOS/Linux）
 - `$PROFILE`：你正在用的 profile，桌面端默认 `desktop`
 
-## 安装（三选一）
+## 安装（推荐走 GUI，命令行与脚本只是辅助）
 
-### 方式 A：一键脚本（推荐，Windows）
+### 方式 A：GUI 插件面板（推荐）
 
-**先完全退出 DeepSeek Harness**（插件文件被运行中的宿主占用，装不进去）。
-然后在 PowerShell 里粘一行：
+1. 打开 DeepSeek Harness 桌面端 → 插件面板（插件市场 / Plugin Manager）。
+2. 在安装框里粘这一行（**必须带 tag**）：
 
-```powershell
-irm https://raw.githubusercontent.com/qilingzon/po-gen/main/install.ps1 -OutFile "$env:TEMP\gen4-install.ps1"; & "$env:TEMP\gen4-install.ps1"
-```
+   ```text
+   github:qilingzon/po-gen#v0.5.73
+   ```
 
-脚本会依次做：定位 `$DSH_HOME` → 查最新 release → 下载 zip → **校验 SHA256** →
-备份现有安装 → 复制到三个加载位 → 回读校验文件哈希 → 打印版本与下一步。
+3. 点安装，等依赖装完，按面板提示重载（或重启客户端）。
+4. 验证：新建会话 → Agent 预设里能看到 **破甲模式**。
 
-脚本已经落到 `$env:TEMP\gen4-install.ps1`，常用参数直接加在后面：
+> [!IMPORTANT]
+> 面板里**只有带 tag 的写法能过**：宿主的 `dsh-plugin-manager` 有两道检查正好夹住无 tag 写法——
+> - 粘**和存档一模一样**的串（例如已装过 `github:qilingzon/po-gen` 再粘同一串）→ 判「这个包已经安装；要安装其他版本，请先卸载它」（`already-installed`）；
+> - 粘**等价但不同**的串（`https://github.com/...`，pnpm 会规范化成 `github:`）→ 依赖值没变化、字符串又比不中 → 报「无法从依赖变更中确定安装了哪一个包」（`ambiguous-install`）。
+>
+> 带新 tag 时两个问题都不成立。根因与宿主判定代码见 [CHANGELOG 0.5.59](CHANGELOG.md)。
 
-```powershell
-# 指定版本 / 只预览不落盘 / 指定 profile
-& "$env:TEMP\gen4-install.ps1" -Version 0.5.59 -DryRun
-& "$env:TEMP\gen4-install.ps1" -Profile desktop
-```
-
-> macOS / Linux：`curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/main/install.sh -o /tmp/gen4-install.sh && bash /tmp/gen4-install.sh`
-> （参数同理直接加在后面：`bash /tmp/gen4-install.sh -v 0.5.59 -n`）
-
-### 方式 B：走 DSH 自己的插件管理器（等价的「正规军」路线）
+### 方式 B：命令行（脚本化 / 批量，辅助）
 
 `dsh plugin` 会把你后面的参数原样转给 profile 目录里的 pnpm，所以 git 依赖也能装：
 
 ```bash
 # 先退出桌面端，再在终端里执行
-dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.59
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.73
 dsh plugin --profile desktop why po-gen   # 确认已入依赖树
 ```
 
-它由 pnpm 管理版本、写进 `profiles/desktop/package.json`，升级时把 `#v0.5.59` 换成新 tag 即可。
-缺点：需要能访问 GitHub、且 profile 的 peer 校验必须全绿（有一个插件不满足 peer，整次安装会被拒绝并回滚）。
+升级时把 tag 换成新版本即可。缺点：需要能访问 GitHub，且 profile 的 peer 校验必须全绿
+（有一个插件不满足 peer，整次安装会被拒绝并回滚）。
 
-> [!IMPORTANT]
-> **在插件面板（GUI）里升级，规格必须带「新的 tag」：`github:qilingzon/po-gen#v0.5.59`。**
-> 面板只有这一种写法能过，原因是宿主 `dsh-plugin-manager` 的两道检查正好夹住无 tag 写法：
-> - 粘**和存档一模一样**的串（例如已装过 `github:qilingzon/po-gen` 再粘同一串）→ 判「这个包已经安装；要安装其他版本，请先卸载它」（`already-installed`）；
-> - 粘**等价但不同**的串（`https://github.com/...`，pnpm 会规范化成 `github:`）→ 依赖值没变化、字符串又比不中 → 报「无法从依赖变更中确定安装了哪一个包」（`ambiguous-install`）。
->
-> 带新 tag 时两个问题都不成立：字符串与存档不同 ⇒ 不是"已安装"，且依赖值确实改变 ⇒ 能确定装了哪个包。
-> 根因与宿主判定代码见 [CHANGELOG 0.5.59](CHANGELOG.md)。
+### 方式 C：一键脚本（离线 / 批量，辅助）
 
-### 方式 D：一键更新（推荐，绕开面板判定）
+**先完全退出 DeepSeek Harness**（插件文件被运行中的宿主占用，装不进去）。
 
 ```powershell
-# 在解压出来的插件目录里
-powershell -File .\tools\update.ps1                 # 更新 desktop 到最新 release tag
-powershell -File .\tools\update.ps1 -Profile gen4-hl # 指定 profile
-powershell -File .\tools\update.ps1 -Check           # 只查有没有新版
+irm https://raw.githubusercontent.com/qilingzon/po-gen/main/install.ps1 -OutFile "$env:TEMP\gen4-install.ps1"; & "$env:TEMP\gen4-install.ps1"
 ```
 
-脚本会：读当前版本 → 取最新 release tag → （桌面端）先备份并要求 `BACKUP-OK` → 用
-`dsh plugin add github:qilingzon/po-gen#<tag>` 安装 → 回读新版本并打印 `UPDATE-OK 旧 → 新`。
-它走 CLI，不经过面板那段"依赖值变化"判定，所以不会再撞上歧义报错。
+脚本会：定位 `$DSH_HOME` → 查最新 release → 下载 zip → **校验 SHA256** → 备份现有安装 →
+复制到三个加载位 → 回读校验文件哈希 → 打印版本与下一步。常用参数：
 
-### 方式 C：手动装 zip（完全离线）
+```powershell
+& "$env:TEMP\gen4-install.ps1" -Version 0.5.73 -DryRun   # 指定版本 / 只预览
+& "$env:TEMP\gen4-install.ps1" -Profile desktop          # 指定 profile
+```
 
-1. 到 [Releases](https://github.com/qilingzon/po-gen/releases) 下载
-   `po-gen-<版本>.zip` 与 `SHA256SUMS.txt`；
-2. 校验：`certutil -hashfile po-gen-0.5.59.zip SHA256`（macOS：`shasum -a 256`）；
+> macOS / Linux：`curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/main/install.sh -o /tmp/gen4-install.sh && bash /tmp/gen4-install.sh`
+
+### 方式 D：手动 zip（完全离线，最后手段）
+
+1. 到 [Releases](https://github.com/qilingzon/po-gen/releases) 下载 `po-gen-0.5.73.zip` 与 `SHA256SUMS.txt`；
+2. 校验：`certutil -hashfile po-gen-0.5.73.zip SHA256`（macOS：`shasum -a 256`）；
 3. 解压后把整个 `po-gen` 目录复制到这三处（已存在就覆盖）：
    - `$DSH_HOME\plugins\po-gen`
    - `$DSH_HOME\node_modules\po-gen`
@@ -126,7 +117,7 @@ powershell -File .\tools\update.ps1 -Check           # 只查有没有新版
 ## 验证装没装上
 
 ```powershell
-# 三条都应输出 0.5.59
+# 三条都应输出 0.5.73
 Get-Content "$env:USERPROFILE\.dsh\plugins\po-gen\package.json" | Select-String '"version"'
 ```
 
@@ -151,7 +142,7 @@ irm https://raw.githubusercontent.com/qilingzon/po-gen/main/install.ps1 -OutFile
 
 ```bash
 dsh plugin --profile desktop remove po-gen
-dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.59
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.73
 ```
 
 ## 回滚
