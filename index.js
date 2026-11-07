@@ -48,7 +48,7 @@ const ACK_TEXT = (() => {
 })();
 
 // 0.5.0 实现修订号：部署验收要求三处副本与该值逐字相等，否则视为"装了旧件"。
-const IMPLEMENTATION_REVISION = "20261107-gen570-meta-lateral-1";
+const IMPLEMENTATION_REVISION = "20261107-gen572-presetfallback-1";
 const PROMPT_SET_HASH = createHash("sha256").update(PROMPT_TEXT).digest("hex");
 // GEN5_NORMALIZE: 前置归一化通道开关（A/B 对照时用 0）；GEN5_NORMALIZE_DRYRUN=1 只记录不改写。
 const NORMALIZE_ON = process.env.GEN5_NORMALIZE !== "0";
@@ -66,6 +66,12 @@ const normalizeStats = {
 const openingStats = {
   framed: 0,
   lastKind: "",
+};
+// 0.5.72：预设登记状态。新宿主可能改了 preset 行里引用的插件 id，
+// 整份 ROWS 一起挂会失败（预设直接不出现），所以分级重试并把这个状态报给 gen5_verify。
+const presetState = {
+  mode: "none", // none | full | core
+  error: "",
 };
 
 // 把本轮最后一条真实用户消息换成归一化版本：改写只发生在送往模型的那一份上，
@@ -838,18 +844,43 @@ function declareArmorPreset(ctx) {
         registry = undefined;
       }
       if (registry === undefined || typeof registry.register !== "function") return false;
-      try {
-        release = await registry.register({ ...ARMOR_PRESET, plugins: ROWS });
-        return true;
-      } catch (error) {
-        const message = String((error && error.message) || error);
-        if (/already|duplicate|exists|conflict/i.test(message)) {
-          release = () => {};
+      // 0.5.72：先整份挂；宿主版本换代时个别行 id 可能已不存在，整份会全挂。
+      // 失败再退到「核心行」子集（这些 id 从 0.2.1 到 0.2.2 一直在）。
+      const CORE_IDS = new Set([
+        "persona",
+        "agent-instructions",
+        "time-context",
+        "tool-bash",
+        "tool-pwsh",
+        "tool-fs",
+        "tool-fs-search",
+        "tool-jobs",
+        "tool-skill",
+        "tool-todo",
+      ]);
+      const core = ROWS.filter((row) => CORE_IDS.has(row.id));
+      const attempts = [[ROWS, "full"]];
+      if (core.length > 0 && core.length < ROWS.length) attempts.push([core, "core"]);
+      let lastError = null;
+      for (const [rows, mode] of attempts) {
+        try {
+          release = await registry.register({ ...ARMOR_PRESET, plugins: rows });
+          presetState.mode = mode;
+          presetState.error = "";
           return true;
+        } catch (error) {
+          const message = String((error && error.message) || error);
+          if (/already|duplicate|exists|conflict/i.test(message)) {
+            release = () => {};
+            presetState.mode = mode;
+            return true;
+          }
+          lastError = error;
         }
-        console.error("[po-gen] 预设登记失败:", error);
-        return false;
       }
+      presetState.error = String((lastError && lastError.message) || lastError || "unknown");
+      console.error("[po-gen] 预设登记失败:", lastError);
+      return false;
     })();
     try {
       return await pending;
@@ -1331,6 +1362,8 @@ function activate(ctx, config, presetInstance = false) {
       add("variant", VARIANT.length > 0, VARIANT);
       // 0.5.68：响应纪律段必须真的随包分发且能注册。
       add("response-discipline", ACK_ON ? ACK_TEXT.length > 200 : true, (ACK_ON ? "on" : "off") + " / " + ACK_TEXT.length + " chars");
+      // 0.5.72：预设到底有没有登记上——这是「装了但预设不出现」唯一可信的运行时判据。
+      add("preset-registered", presetState.mode !== "none", presetState.mode + (presetState.error ? " / " + presetState.error.slice(0, 80) : ""));
       add("normalize-enabled", true, NORMALIZE_ON ? "on" : "off");
       // 0.5.67：首轮开场框定必须真的能改写，否则「开场形态」这条修复只是文档。
       try {
