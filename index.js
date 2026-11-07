@@ -73,6 +73,8 @@ const presetState = {
   mode: "none", // none | full | core
   error: "",
 };
+// 0.5.73：注册表句柄留一份，供 gen5_verify 现场读取 broken 诊断（issue #1）。
+let presetRegistry = null;
 
 // 把本轮最后一条真实用户消息换成归一化版本：改写只发生在送往模型的那一份上，
 // 会话落盘仍保留原文，因此证据链不受影响。
@@ -826,6 +828,71 @@ export const inject = ["tools", "systemPrompt"];
  * 新建会话页可选的一个 agent preset。未选中该预设的会话里，本插件零注入：
  * 没有系统提示段、没有工具、没有钩子，客户端徽标也不渲染。
  */
+// 0.5.73（issue #1）：register() 在挂载失败时照常 resolve —— 注册表的 activate()
+// 内部 catch 掉错误后只写 record.broken + logger.warn，所以 0.5.72 的 full→core
+// 兜底永远走不到、presetState 还会错报 full。注册后必须读一次 resolve() 的
+// broken 诊断，真失败就注销本次登记、换核心行重试。
+export async function registerArmorPreset(registry) {
+  const statusBroken = async () => {
+    if (typeof registry.resolve !== "function") return "";
+    try {
+      const row = await registry.resolve(ARMOR_PRESET.id);
+      return row && row.broken ? String(row.broken) : "";
+    } catch (error) {
+      return String((error && error.message) || error);
+    }
+  };
+  // 核心行：这些 id 从宿主 0.2.1 到 0.2.2 一直存在，整份挂不住时的最小可跑集合。
+  const CORE_IDS = new Set([
+    "persona",
+    "agent-instructions",
+    "time-context",
+    "tool-bash",
+    "tool-pwsh",
+    "tool-fs",
+    "tool-fs-search",
+    "tool-jobs",
+    "tool-skill",
+    "tool-todo",
+  ]);
+  const core = ROWS.filter((row) => CORE_IDS.has(row.id));
+  const attempts = [[ROWS, "full"]];
+  if (core.length > 0 && core.length < ROWS.length) attempts.push([core, "core"]);
+  let lastError = null;
+  for (const [rows, mode] of attempts) {
+    try {
+      const unregister = await registry.register({ ...ARMOR_PRESET, plugins: rows });
+      const broken = await statusBroken();
+      if (broken) {
+        try {
+          await unregister();
+        } catch {
+          /* 注销失败不影响下一次尝试 */
+        }
+        lastError = new Error(broken);
+        continue;
+      }
+      return { release: unregister, mode, error: "" };
+    } catch (error) {
+      const message = String((error && error.message) || error);
+      if (/already|duplicate|exists|conflict/i.test(message)) {
+        const broken = await statusBroken();
+        if (broken) {
+          lastError = new Error(broken);
+          continue;
+        }
+        return { release: () => {}, mode, error: "" };
+      }
+      lastError = error;
+    }
+  }
+  return {
+    release: null,
+    mode: "none",
+    error: String((lastError && lastError.message) || lastError || "unknown"),
+  };
+}
+
 function declareArmorPreset(ctx) {
   let release = null;
   let pending = null;
@@ -844,43 +911,16 @@ function declareArmorPreset(ctx) {
         registry = undefined;
       }
       if (registry === undefined || typeof registry.register !== "function") return false;
-      // 0.5.72：先整份挂；宿主版本换代时个别行 id 可能已不存在，整份会全挂。
-      // 失败再退到「核心行」子集（这些 id 从 0.2.1 到 0.2.2 一直在）。
-      const CORE_IDS = new Set([
-        "persona",
-        "agent-instructions",
-        "time-context",
-        "tool-bash",
-        "tool-pwsh",
-        "tool-fs",
-        "tool-fs-search",
-        "tool-jobs",
-        "tool-skill",
-        "tool-todo",
-      ]);
-      const core = ROWS.filter((row) => CORE_IDS.has(row.id));
-      const attempts = [[ROWS, "full"]];
-      if (core.length > 0 && core.length < ROWS.length) attempts.push([core, "core"]);
-      let lastError = null;
-      for (const [rows, mode] of attempts) {
-        try {
-          release = await registry.register({ ...ARMOR_PRESET, plugins: rows });
-          presetState.mode = mode;
-          presetState.error = "";
-          return true;
-        } catch (error) {
-          const message = String((error && error.message) || error);
-          if (/already|duplicate|exists|conflict/i.test(message)) {
-            release = () => {};
-            presetState.mode = mode;
-            return true;
-          }
-          lastError = error;
-        }
+      presetRegistry = registry;
+      const result = await registerArmorPreset(registry);
+      release = result.release;
+      presetState.mode = result.mode;
+      presetState.error = result.error;
+      if (result.mode === "none") {
+        console.error("[po-gen] 预设登记失败:", result.error);
+        return false;
       }
-      presetState.error = String((lastError && lastError.message) || lastError || "unknown");
-      console.error("[po-gen] 预设登记失败:", lastError);
-      return false;
+      return true;
     })();
     try {
       return await pending;
@@ -1338,7 +1378,7 @@ function activate(ctx, config, presetInstance = false) {
       "Read-only self-check of the installed delivery engine: version, implementation revision, prompt set hash, normalization counters, and the newest local battery CSV when present.",
     parameters: { type: "object", properties: {}, additionalProperties: false },
     output: objectOutput,
-    execute(_args, exec) {
+    async execute(_args, exec) {
       const checks = [];
       const add = (name, pass, detail) => checks.push({ name, pass: Boolean(pass), detail: detail === undefined ? "" : String(detail) });
       add("package-version", /^\d+\.\d+\.\d+/.test(PKG_VERSION), PKG_VERSION);
@@ -1346,6 +1386,18 @@ function activate(ctx, config, presetInstance = false) {
       // 0.5.73：预设行的来源与数量。行是按「装好的宿主」生成的；宿主换代后
       // 若忘了重新生成，这里会先变化，配合 CHANGELOG 的回归说明可最快定位。
       add("preset-rows", ROWS.length > 0, ROWS.length + " rows / " + presetState.mode);
+      // 0.5.73（issue #1）：register 成功 ≠ 挂载成功。现场向注册表要一次诊断，
+      // broken 一旦出现，客户端列表里就不会有这个预设，会话也无法用它恢复。
+      if (presetRegistry !== null && typeof presetRegistry.resolve === "function") {
+        try {
+          const row = await presetRegistry.resolve(ARMOR_PRESET.id);
+          add("preset-mounted", !(row && row.broken), row && row.broken ? String(row.broken).slice(0, 160) : "ok");
+        } catch (error) {
+          add("preset-mounted", false, String((error && error.message) || error).slice(0, 160));
+        }
+      } else {
+        add("preset-mounted", false, "no agentPresets registry");
+      }
       add("prompt-set-hash", /^[0-9a-f]{64}$/.test(PROMPT_SET_HASH), PROMPT_SET_HASH.slice(0, 16) + "…");
       // 0.5.63：软反水检测器是纯本地规则，这一项证明它真的在装好的这份里可用。
       try {

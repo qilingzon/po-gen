@@ -19,13 +19,14 @@ DSH 桌面端升到 **0.2.2-rc.1** 后，所有绑定 `armor` 预设的会话打
 
 1. `preset-rows.js` 改为从**当前安装的 app.asar** 内 `@deepseek-ai/dsh-web-app/presets/standard.patch.yml` 重新生成，宿主是什么版本就用什么行。
 2. 新增 `tools/build-preset-rows.mjs`：生成后**逐行（含 group 子行）校验模块说明符是否能在该宿主的 `package.json.exports` 里解析**，任何一行解析不到就拒绝写文件（exit 1）。
-3. `gen5_verify` 新增 `preset-rows` 项（行数 + 当前登记模式），宿主换代后忘了重生成时能第一时间看出来。
+3. **兜底不再是摆设（issue #1 的第二个点）**：`agentPresets.register()` 在挂载失败时照常 resolve（`activate()` 内部 catch 后只写 `record.broken` + `logger.warn`），所以 0.5.72 的 full→core 降级永远走不到、还会错报 `full`。现在 `declareArmorPreset` 注册后读 `registry.resolve("armor").broken`，真失败就注销本次登记并用核心行重试；`registerArmorPreset()` 独立导出，有单测覆盖「broken→降级 / 全失败→none / 已存在但未坏→可用」三条路径。
+4. `gen5_verify` 改为 async，新增 `preset-rows`（行数/模式）与 `preset-mounted`（现场读注册表 broken 诊断）两项——`preset-registered: full` 从此不再被当成「能挂」的证据。
 
 ### 验证
 
 - `node tools/build-preset-rows.mjs`：`rows=32 (top-level 23)`，全部解析通过，宿主 `v0.2.2-rc.1`。
 - `node tools/build-preset-rows.mjs --check`：对现有 `preset-rows.js` 复检通过。
-- `npm test` 全绿（见本次提交输出）。
+- `npm test` **52/52 pass**（新增 `test/preset-fallback.test.mjs` 3 例）。
 
 ### 回归防护
 
