@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # ============================================================================
-#  dsh-infinite-gen-4  ·  DeepSeek 破甲插件「无限四代」一键安装脚本
+#  po-gen  ·  DeepSeek 破甲插件「无限四代」一键安装脚本
 #  适用：Linux / macOS（Windows 用户请用 install.ps1）
 # ============================================================================
 #  用法：chmod +x install.sh && ./install.sh
 #  自动完成：
 #    [1] 检查环境（DSH 目录、profile、pnpm）
-#    [2] 复制插件到 ~/.dsh/plugins/dsh-infinite-gen-4（自动覆盖旧版，清理一代残留）
+#    [2] 复制插件到 ~/.dsh/plugins/po-gen（自动覆盖旧版，清理一代残留）
 #    [3] 自动备份 package.json（带时间戳 .bak）
 #    [4] 写入 profile 依赖与 bundles（幂等，旧版 dsh-infinite-gen-3 自动迁移）
 #    [5] 自动执行 pnpm install
@@ -14,7 +14,7 @@
 # ============================================================================
 set -euo pipefail
 
-PLUGIN_NAME="dsh-infinite-gen-4"
+PLUGIN_NAME="po-gen"
 PLUGIN_LABEL="无限四代"
 OLD_PLUGIN_NAME="dsh-infinite-gen-3"
 DSH_ROOT="${DSH_HOME:-$HOME/.dsh}"

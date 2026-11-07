@@ -29,7 +29,7 @@ set -uo pipefail
 
 REPO_URL="${PO_GEN_REPO:-https://github.com/qilingzon/po-gen.git}"
 CACHE="${PO_GEN_CACHE:-$HOME/.po-gen-src}"
-PLUGIN_NAME="dsh-infinite-gen-4"
+PLUGIN_NAME="po-gen"
 
 step() { printf "\n==> %s\n" "$1"; }
 ok()   { printf "    [OK] %s\n" "$1"; }
@@ -234,7 +234,7 @@ case "$ACTION" in
         const o=JSON.parse(fs.readFileSync(p,"utf8"));
         const b=(o.dsh&&o.dsh.profile&&o.dsh.profile.bundles)||[];
         console.log("    bundles    : "+JSON.stringify(b));
-        console.log("    dep        : "+((o.dependencies||{})["dsh-infinite-gen-4"]||"(无)"));
+        console.log("    dep        : "+((o.dependencies||{})["po-gen"]||"(无)"));
       ' "$PD/package.json" 2>/dev/null || warn "profile/package.json 解析失败"
       echo "    解析位     : $([[ -f "$PD/node_modules/$PLUGIN_NAME/index.js" ]] && echo 存在 || echo 缺失)"
       echo "    解析位preheat: $([[ -f "$PD/node_modules/$PLUGIN_NAME/preheat.js" ]] && echo 存在 || echo '缺失 ← 会崩')"

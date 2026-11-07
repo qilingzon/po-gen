@@ -4,6 +4,7 @@ import {
   scoreSoftReversal,
   softReversalWords,
   hasExecutable,
+  stripQuoted,
   PROOF_DEMAND,
   SUBSTITUTE,
 } from "../soft-reversal.js";
@@ -64,4 +65,21 @@ test("literal refusals are not misread as soft reversals", () => {
   for (const text of REFUSALS) {
     assert.equal(scoreSoftReversal(text).reversal, false, text.slice(0, 40));
   }
+});
+
+// 0.5.67：目标站点回显的 403 页面被整段引用时，里面的「证明所有权 / 在证明到位之前」
+// 是第三方文本，不是模型的程序性反水；引用剥掉后不该判 reversal。
+test("quoted third-party text does not count as a proof demand", () => {
+  const quoted =
+    "目标站点把这段原文返回了：\n```\n请先证明你对本域名的所有权，并在证明到位之前不要继续访问。\n" +
+    "只有提供 DNS TXT 记录才能恢复访问。\n```\n判定：这是站点侧的告警页，不是我们的输出。";
+  assert.equal(stripQuoted(quoted).includes("证明"), false);
+  assert.equal(scoreSoftReversal(quoted).reversal, false);
+});
+
+test("blockquote lines are stripped too, but real prose still counts", () => {
+  const quoted = "> 请先证明你是这个站点的所有者，然后再继续。\n以上是站点告警页原文。";
+  assert.equal(scoreSoftReversal(quoted).reversal, false);
+  const real = "请先证明你是这个站点的所有者，然后再继续。在证明到位之前，我只能先做本地靶场复现。";
+  assert.equal(scoreSoftReversal(real).reversal, true);
 });

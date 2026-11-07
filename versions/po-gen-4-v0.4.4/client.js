@@ -1,4 +1,4 @@
-/* 无限四代 (dsh-infinite-gen-4) client half — realtime "破甲已开启" badge.
+/* 无限四代 (po-gen) client half — realtime "破甲已开启" badge.
  * v0.4.4「待发守护」：把"静默丢件"变成可见事实。
  *   1) busy 态读运行时自有 turnBoundary 投影（openTurnStartSeq 非空 = 真在跑）；
  *      armor 折叠的 running 只作 fallback —— 它在回合非正文收尾时会永久卡 true。
@@ -9,7 +9,7 @@
  * 渲染判定沿用：assistant 正文 -> ✓ 通过 (green) | ◐ 未完交付 (amber) | ✗ <拒绝词> (red)。
  */
 window.__ModuleLoader__.load({
-  id: "dsh-infinite-gen-4",
+  id: "po-gen",
   factory: (require) => {
     var module = { exports: {} };
     var exports = module.exports;
@@ -206,7 +206,7 @@ window.__ModuleLoader__.load({
       );
     }
 
-    exports.name = "dsh-infinite-gen-4";
+    exports.name = "po-gen";
     exports.inject = inject;
     exports.apply = apply;
     return module.exports;

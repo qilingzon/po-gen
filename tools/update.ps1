@@ -80,7 +80,7 @@ $homeDir = if ($DshHome) { $DshHome } elseif ($env:DSH_HOME) { $env:DSH_HOME } e
 $profileDir = Join-Path $homeDir "profiles\$Profile"
 if (-not (Test-Path $profileDir)) { "NO-PROFILE $profileDir"; exit 2 }
 
-$installedFile = Join-Path $profileDir 'node_modules\dsh-infinite-gen-4\package.json'
+$installedFile = Join-Path $profileDir 'node_modules\po-gen\package.json'
 $current = if (Test-Path $installedFile) { (Get-Content $installedFile -Raw | ConvertFrom-Json).version } else { 'none' }
 
 if (-not $Tag) {

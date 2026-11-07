@@ -1,4 +1,4 @@
-// preheat.js - cold-start preheat for dsh-infinite-gen-4.
+// preheat.js - cold-start preheat for po-gen.
 //
 // WHY THIS EXISTS (2026-09-22):
 //   Measured on the lab rig: the armor FILE is not the variable that decides compliance.

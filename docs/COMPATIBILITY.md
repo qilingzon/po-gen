@@ -46,7 +46,7 @@ rc.3 与本插件相关的五个宿主包（`dsh-system-prompt`、`dsh-session-p
 |---|---|---|
 | Windows 11 · 桌面端 0.2.1-rc.2 | `install.ps1` 三处刷入 | 三处 `version` 一致、`gen5_verify` OK |
 | Windows 11 · CLI 0.2.1-rc.2（`dsh --profile gen4-hl`） | `dsh plugin add` / 源同步 | headless 会话可交付 |
-| Windows 11 · CLI 0.2.1-rc.3，自建 profile（`dsh plugin --profile rc3 add file:`） | 装进 rc.3 profile | 安装 exit 0；`--dump-config` 树里出现 `- id: infinite-gen-4`（0.6s）；原生 headless **未跑通**（见下） |
+| Windows 11 · CLI 0.2.1-rc.3，自建 profile（`dsh plugin --profile rc3 add file:`） | 装进 rc.3 profile | 安装 exit 0；`--dump-config` 树里出现 `- id: po-gen`（0.6s）；原生 headless **未跑通**（见下） |
 | Windows 11 · CLI 0.2.1-rc.3 + 既有 `gen4-hl` profile | 源同步 + headless 单轮 | 会话正常起、17 KB reasoning 流、无导入错；工具层证据沿用 0.5.5 的 `gen5_verify`（同一 `index.js` 字节） |
 | Git Bash · Windows | `install.sh` | `-f` / `-l` / `-r` 全通 |
 

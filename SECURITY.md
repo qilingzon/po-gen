@@ -6,8 +6,8 @@
 
 | 路径 | 内容 | 何时 |
 | --- | --- | --- |
-| `$DSH_HOME/plugins/dsh-infinite-gen-4/` | 插件本体 | 安装时 |
-| `$DSH_HOME/profiles/<profile>/node_modules/dsh-infinite-gen-4/` | 同上（宿主实际加载的一份） | 安装时 |
+| `$DSH_HOME/plugins/po-gen/` | 插件本体 | 安装时 |
+| `$DSH_HOME/profiles/<profile>/node_modules/po-gen/` | 同上（宿主实际加载的一份） | 安装时 |
 | `$DSH_HOME/plugin-backups/<时间戳>/` | 覆盖前的旧版本 | 安装 / 更新时，可用 `-Restore` 回滚 |
 
 **读**：工作区里的进度文件（默认 `progress.md`，可配置）、`package.json`。

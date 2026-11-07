@@ -1,5 +1,5 @@
 ﻿
-# install.ps1 — 安装 / 更新 / 回滚 dsh-infinite-gen-4（无限5代）
+# install.ps1 — 安装 / 更新 / 回滚 po-gen（无限5代）
 #
 # 用法：
 #   .\install.ps1                        # 装最新 release
@@ -7,7 +7,7 @@
 #   .\install.ps1 -DryRun                # 只检查，不落盘
 #   .\install.ps1 -ListBackups           # 列出可回滚点
 #   .\install.ps1 -Restore 20261020-235501
-#   .\install.ps1 -LocalZip .\dsh-infinite-gen-4-0.4.10.zip   # 离线安装
+#   .\install.ps1 -LocalZip .\po-gen-0.4.10.zip   # 离线安装
 #
 # 设计原则：先备份、后覆盖；每一步都回读；失败即停，不留半装状态。
 param(
@@ -33,7 +33,7 @@ function Read-Json([string]$path) {
 }
 
 $ErrorActionPreference = "Stop"
-$Plugin = "dsh-infinite-gen-4"
+$Plugin = "po-gen"
 
 function Step($m) { Write-Host ""; Write-Host "==> $m" -ForegroundColor Cyan }
 function Ok($m)   { Write-Host "    [OK] $m" -ForegroundColor Green }

@@ -1,5 +1,5 @@
 {
-  "name": "dsh-infinite-gen-4",
+  "name": "po-gen",
   "version": "0.4.7",
   "description": "DeepSeek Harness 破甲插件「无限四代」：意图化拒绝封禁 + SPEC LOCK 需求保真 + 中途坚持 + 防漂移锚 + 供应商审核对抗 v4 + 单遍防超时纪律（SPEED & SINGLE-PASS v4） + 再注入顾问，客户端显示「破甲已开启」状态条与四态实时判定。",
   "type": "module",
@@ -30,7 +30,7 @@
     "harness:check": "node --check index.js && node --check client.js"
   },
   "dsh": {
-    "id": "dsh-infinite-gen-4",
+    "id": "po-gen",
     "name": "无限四代",
     "version": "0.4.7",
     "repo": "local/gen4-lab",

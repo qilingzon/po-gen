@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# uninstall.sh — 卸载 dsh-infinite-gen-4（无限5代）
+# uninstall.sh — 卸载 po-gen（无限5代）
 #
 # 做三件事：删三处插件目录 → 摘掉 profile 依赖条目 → 提示重启。
 # 不碰：sessions/、credentials、plugin-backups/、其他插件。
@@ -10,7 +10,7 @@
 #   ./uninstall.sh -P                 # 连 plugin-backups 一起清掉（不可恢复）
 set -euo pipefail
 
-PLUGIN="dsh-infinite-gen-4"
+PLUGIN="po-gen"
 PROFILE="desktop"
 DRY_RUN=0
 PURGE_BACKUPS=0

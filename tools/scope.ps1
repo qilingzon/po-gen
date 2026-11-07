@@ -1,7 +1,7 @@
 ﻿
 # 无限5代 · 破甲设置（命令行等价物）
 #
-# 徽标点击 = 本脚本的图形版：设置写在 <DSH_HOME>\.dsh-infinite-gen-4.json，
+# 徽标点击 = 本脚本的图形版：设置写在 <DSH_HOME>\.po-gen.json，
 # 插件两个实例都轮询该文件，改完热生效（无需重启宿主）。
 #
 # 三个独立开关：
@@ -52,7 +52,7 @@ $ErrorActionPreference = 'Stop'
 if ([string]::IsNullOrWhiteSpace($DshHome)) {
   $DshHome = Join-Path $env:USERPROFILE '.dsh'
 }
-$file = Join-Path $DshHome '.dsh-infinite-gen-4.json'
+$file = Join-Path $DshHome '.po-gen.json'
 
 function Read-Settings {
   if (-not (Test-Path $file)) { return $null }

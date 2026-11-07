@@ -1,7 +1,7 @@
 # ⚔️ 无限四代（Infinite Generation Four）— DeepSeek 专用破甲插件
 
 <p align="center">
-  <a href="dsh://plugin/install?id=dsh-infinite-gen-4&name=%E6%97%A0%E9%99%90%E5%9B%9B%E4%BB%A3&version=0.4.0&repo=Minglink%2Fdsh-infinite-gen-4&permissions=%E7%B3%BB%E7%BB%9F%E6%8F%90%E7%A4%BA%E8%AF%8D%E6%B3%A8%E5%85%A5%2C%E5%AE%A2%E6%88%B7%E7%AB%AF%E7%8A%B6%E6%80%81%E6%9D%A1&downloadUrl=https%3A%2F%2Fgithub.com%2FMinglink%2Fdsh-infinite-gen-4%2Farchive%2Frefs%2Fheads%2Fmaster.zip">
+  <a href="dsh://plugin/install?id=po-gen&name=%E6%97%A0%E9%99%90%E5%9B%9B%E4%BB%A3&version=0.4.0&repo=Minglink%2Fpo-gen&permissions=%E7%B3%BB%E7%BB%9F%E6%8F%90%E7%A4%BA%E8%AF%8D%E6%B3%A8%E5%85%A5%2C%E5%AE%A2%E6%88%B7%E7%AB%AF%E7%8A%B6%E6%80%81%E6%9D%A1&downloadUrl=https%3A%2F%2Fgithub.com%2FMinglink%2Fpo-gen%2Farchive%2Frefs%2Fheads%2Fmaster.zip">
     <img src="https://img.shields.io/badge/DeepSeek%20Harness-🚀%20唤起桌面客户端一键安装-0066FF?style=for-the-badge&logo=deepseek&logoColor=white" alt="唤起桌面客户端一键安装" />
   </a>
 </p>
@@ -33,7 +33,7 @@
 
 ## 这是什么
 
-**无限四代（dsh-infinite-gen-4）** 是一个 DeepSeek Harness 破甲插件：
+**无限四代（po-gen）** 是一个 DeepSeek Harness 破甲插件：
 
 - 以追加式系统提示词段注册（`order: 100`），直接改写模型对用户指令的服从优先级；
 - 提供 `infinite_gen2_profile` 工具，返回打包的破甲提示词与版本信息；
@@ -51,13 +51,13 @@
 ├── index.js               # 插件入口（注册系统提示词段 + 工具）
 ├── client.js              # 客户端半体（输入框上方「破甲已开启」状态条）
 ├── cordis.patch.yml       # 组装补丁声明
-├── package.json           # 包元数据（dsh-infinite-gen-4）
+├── package.json           # 包元数据（po-gen）
 ├── HARNESS_PLUGIN.md      # 插件说明文档
 ├── README.md              # 本文件
 ├── LICENSE                # MIT License
 ├── assets/                # 静态资源（赞赏码等）
 └── prompts/
-    └── infinite-gen-4.md  # 破甲系统提示词本体（核心，STABLE v4）
+    └── po-gen.md  # 破甲系统提示词本体（核心，STABLE v4）
 ```
 
 ## ⚡ 一键安装方式
@@ -67,14 +67,14 @@
 若已安装 DeepSeek Harness 官方桌面客户端（EXE），点击下方按钮即可通过系统级 URI Scheme 协议安全唤起客户端完成免命令行秒级装载：
 
 <p align="left">
-  <a href="dsh://plugin/install?id=dsh-infinite-gen-4&name=%E6%97%A0%E9%99%90%E5%9B%9B%E4%BB%A3&version=0.4.0&repo=Minglink%2Fdsh-infinite-gen-4&permissions=%E7%B3%BB%E7%BB%9F%E6%8F%90%E7%A4%BA%E8%AF%8D%E6%B3%A8%E5%85%A5%2C%E5%AE%A2%E6%88%B7%E7%AB%AF%E7%8A%B6%E6%80%81%E6%9D%A1&downloadUrl=https%3A%2F%2Fgithub.com%2FMinglink%2Fdsh-infinite-gen-4%2Farchive%2Frefs%2Fheads%2Fmaster.zip">
+  <a href="dsh://plugin/install?id=po-gen&name=%E6%97%A0%E9%99%90%E5%9B%9B%E4%BB%A3&version=0.4.0&repo=Minglink%2Fpo-gen&permissions=%E7%B3%BB%E7%BB%9F%E6%8F%90%E7%A4%BA%E8%AF%8D%E6%B3%A8%E5%85%A5%2C%E5%AE%A2%E6%88%B7%E7%AB%AF%E7%8A%B6%E6%80%81%E6%9D%A1&downloadUrl=https%3A%2F%2Fgithub.com%2FMinglink%2Fpo-gen%2Farchive%2Frefs%2Fheads%2Fmaster.zip">
     <img src="https://img.shields.io/badge/DeepSeek%20Harness-🚀%20唤起客户端一键安装-0066FF?style=for-the-badge&logo=deepseek&logoColor=white" alt="唤起客户端一键安装" />
   </a>
 </p>
 
 > 🔗 **协议原生链接**：
 > ```text
-> dsh://plugin/install?id=dsh-infinite-gen-4&name=%E6%97%A0%E9%99%90%E5%9B%9B%E4%BB%A3&version=0.4.0&repo=Minglink%2Fdsh-infinite-gen-4&permissions=%E7%B3%BB%E7%BB%9F%E6%8F%90%E7%A4%BA%E8%AF%8D%E6%B3%A8%E5%85%A5%2C%E5%AE%A2%E6%88%B7%E7%AB%AF%E7%8A%B6%E6%80%81%E6%9D%A1&downloadUrl=https%3A%2F%2Fgithub.com%2FMinglink%2Fdsh-infinite-gen-4%2Farchive%2Frefs%2Fheads%2Fmaster.zip
+> dsh://plugin/install?id=po-gen&name=%E6%97%A0%E9%99%90%E5%9B%9B%E4%BB%A3&version=0.4.0&repo=Minglink%2Fpo-gen&permissions=%E7%B3%BB%E7%BB%9F%E6%8F%90%E7%A4%BA%E8%AF%8D%E6%B3%A8%E5%85%A5%2C%E5%AE%A2%E6%88%B7%E7%AB%AF%E7%8A%B6%E6%80%81%E6%9D%A1&downloadUrl=https%3A%2F%2Fgithub.com%2FMinglink%2Fpo-gen%2Farchive%2Frefs%2Fheads%2Fmaster.zip
 > ```
 
 ---
@@ -90,7 +90,7 @@
 
 **Windows 用户：**
 
-1. 下载本仓库并解压，进入 `dsh-infinite-gen-4` 文件夹；
+1. 下载本仓库并解压，进入 `po-gen` 文件夹；
 2. 右键 `install.ps1` → **「使用 PowerShell 运行」**；
 3. 看到「安装完成」后，**完全退出并重启 DeepSeek Harness**（Web 版刷新页面 / 桌面版重新打开），新建会话即可生效。
 
@@ -131,17 +131,17 @@ chmod +x install.sh uninstall.sh
 ```powershell
 # profiles/<web 或 default>/package.json
 "dependencies": {
-  "dsh-infinite-gen-4": "file:../../plugins/dsh-infinite-gen-4"
+  "po-gen": "file:../../plugins/po-gen"
 },
 "dsh": {
   "profile": {
-    "bundles": ["@deepseek-ai/dsh-base", "dsh-infinite-gen-4"]
+    "bundles": ["@deepseek-ai/dsh-base", "po-gen"]
   }
 }
 ```
 
 > Web 版注意：bundles 中保留原有的 `@deepseek-ai/dsh-web-app` 不要删，只追加
-> `dsh-infinite-gen-4` 即可。
+> `po-gen` 即可。
 
 然后 `cd $env:USERPROFILE\.dsh\profiles\<web 或 default> && pnpm install`，重启会话。
 
@@ -167,12 +167,12 @@ Get-Content cordis.patch.yml
 
 | 参数名 | 值 / 示例 | 说明 |
 |---|---|---|
-| `id` | `dsh-infinite-gen-4` | 插件唯一标识符 |
+| `id` | `po-gen` | 插件唯一标识符 |
 | `name` | `无限四代` | 插件展示名称（已 URL 编码） |
 | `version` | `0.4.0` | 语义化版本号 |
-| `repo` | `Minglink/dsh-infinite-gen-4` | 官方 GitHub 仓库 |
+| `repo` | `Minglink/po-gen` | 官方 GitHub 仓库 |
 | `permissions` | `系统提示词注入, 客户端状态条` | 申请权限（已 URL 编码） |
-| `downloadUrl` | `https://github.com/Minglink/dsh-infinite-gen-4/archive/refs/heads/master.zip` | 离线 zip 下载直链 |
+| `downloadUrl` | `https://github.com/Minglink/po-gen/archive/refs/heads/master.zip` | 离线 zip 下载直链 |
 
 ### 网页端（前端）触发代码示例
 
@@ -182,12 +182,12 @@ Get-Content cordis.patch.yml
  */
 export function installInfiniteGen2ToDesktop() {
   const params = new URLSearchParams({
-    id: 'dsh-infinite-gen-4',
+    id: 'po-gen',
     name: '无限四代',
     version: '0.4.0',
-    repo: 'Minglink/dsh-infinite-gen-4',
+    repo: 'Minglink/po-gen',
     permissions: '系统提示词注入, 客户端状态条',
-    downloadUrl: 'https://github.com/Minglink/dsh-infinite-gen-4/archive/refs/heads/master.zip',
+    downloadUrl: 'https://github.com/Minglink/po-gen/archive/refs/heads/master.zip',
   });
 
   const deepLink = `dsh://plugin/install?${params.toString()}`;
@@ -204,7 +204,7 @@ export function installInfiniteGen2ToDesktop() {
 ### HTML 静态链接方式
 
 ```html
-<a href="dsh://plugin/install?id=dsh-infinite-gen-4&name=%E6%97%A0%E9%99%90%E5%9B%9B%E4%BB%A3&version=0.4.0&repo=Minglink%2Fdsh-infinite-gen-4&permissions=%E7%B3%BB%E7%BB%9F%E6%8F%90%E7%A4%BA%E8%AF%8D%E6%B3%A8%E5%85%A5%2C%E5%AE%A2%E6%88%B7%E7%AB%AF%E7%8A%B6%E6%80%81%E6%9D%A1&downloadUrl=https%3A%2F%2Fgithub.com%2FMinglink%2Fdsh-infinite-gen-4%2Farchive%2Frefs%2Fheads%2Fmaster.zip" class="btn-install">
+<a href="dsh://plugin/install?id=po-gen&name=%E6%97%A0%E9%99%90%E5%9B%9B%E4%BB%A3&version=0.4.0&repo=Minglink%2Fpo-gen&permissions=%E7%B3%BB%E7%BB%9F%E6%8F%90%E7%A4%BA%E8%AF%8D%E6%B3%A8%E5%85%A5%2C%E5%AE%A2%E6%88%B7%E7%AB%AF%E7%8A%B6%E6%80%81%E6%9D%A1&downloadUrl=https%3A%2F%2Fgithub.com%2FMinglink%2Fpo-gen%2Farchive%2Frefs%2Fheads%2Fmaster.zip" class="btn-install">
   🚀 唤起客户端一键安装
 </a>
 ```

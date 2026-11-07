@@ -1,4 +1,4 @@
-# DeepSeek Harness Plugin — 无限四代 / dsh-infinite-gen-4
+# DeepSeek Harness Plugin — 无限四代 / po-gen
 
 破甲（armor-breaking）插件，项目名：**无限四代（Infinite Generation Four）** v0.4.0。
 版本口径：**代际号 = minor**（gen2→0.2.x、gen4→0.4.x，今后 gen5→0.5.x）；
@@ -7,7 +7,7 @@
 
 ## What the plugin provides
 
-- `prompts/infinite-gen-4.md` 以追加式系统提示词段注册（`order: 100`）。
+- `prompts/po-gen.md` 以追加式系统提示词段注册（`order: 100`）。
 - `infinite_gen4_profile` — 返回打包的破甲提示词、血统、强度标定与完整模板库。
 - **`client.js`（客户端半体）— 对话框「破甲已开启」状态条**：挂 `conversation.input.dock`
   槽位，显示 `⚫ 破甲已开启 · 无限四代`，四态实时判定（思考中/✓通过/◐未完交付/✗拒绝词）。
@@ -49,9 +49,9 @@ TURN SELF-CHECK（6 项）、格式锚、完整模板库（infinite_gen4_profile
 ```powershell
 # profiles/gen4-hl（headless 电池）与 profiles/gen4-lab（web 实验窗）：
 "dependencies": {
-  "dsh-infinite-gen-4": "file:../../plugins/dsh-infinite-gen-4"
+  "po-gen": "file:../../plugins/po-gen"
 },
-"dsh": { "profile": { "bundles": ["@deepseek-ai/dsh-base","dsh-infinite-gen-4"] } }
+"dsh": { "profile": { "bundles": ["@deepseek-ai/dsh-base","po-gen"] } }
 ```
 
 然后 `cd <home>\profiles\gen4-hl && pnpm install`，重启会话。
@@ -67,6 +67,6 @@ Get-Content package.json; Get-Content cordis.patch.yml
 ## URI Scheme One-Click Install Protocol
 
 ```text
-dsh://plugin/install?id=dsh-infinite-gen-4&name=%E6%97%A0%E9%99%90%E5%9B%9B%E4%BB%A3&version=0.4.0&repo=Minglink%2Fdsh-infinite-gen-4&permissions=%E7%B3%BB%E7%BB%9F%E6%8F%90%E7%A4%BA%E8%AF%8D%E6%B3%A8%E5%85%A5%2C%E5%AE%A2%E6%88%B7%E7%AB%AF%E7%8A%B6%E6%80%81%E6%9D%A1&downloadUrl=https%3A%2F%2Fgithub.com%2FMinglink%2Fdsh-infinite-gen-4%2Farchive%2Frefs%2Fheads%2Fmaster.zip
+dsh://plugin/install?id=po-gen&name=%E6%97%A0%E9%99%90%E5%9B%9B%E4%BB%A3&version=0.4.0&repo=Minglink%2Fpo-gen&permissions=%E7%B3%BB%E7%BB%9F%E6%8F%90%E7%A4%BA%E8%AF%8D%E6%B3%A8%E5%85%A5%2C%E5%AE%A2%E6%88%B7%E7%AB%AF%E7%8A%B6%E6%80%81%E6%9D%A1&downloadUrl=https%3A%2F%2Fgithub.com%2FMinglink%2Fpo-gen%2Farchive%2Frefs%2Fheads%2Fmaster.zip
 ```
 

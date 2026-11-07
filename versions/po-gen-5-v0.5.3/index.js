@@ -21,14 +21,14 @@ const PKG_VERSION = (() => {
 const VARIANT = (process.env.GEN4_VARIANT || "b37-lite").replace(/[^\w.-]/g, "");
 const PROMPT_URL = new URL(
   VARIANT === "main"
-    ? "./prompts/infinite-gen-4.md"
+    ? "./prompts/po-gen.md"
     : `./prompts/variants/${VARIANT}.md`,
   import.meta.url,
 );
 const PROMPT_TEXT = readFileSync(
   existsSync(PROMPT_URL)
     ? PROMPT_URL
-    : new URL("./prompts/infinite-gen-4.md", import.meta.url),
+    : new URL("./prompts/po-gen.md", import.meta.url),
   "utf8",
 );
 
@@ -58,7 +58,7 @@ function normalizeUserTurn(decision) {
       const m = decision.messages[i];
       if (!m || m.role !== "user") continue;
       const src = m.source || {};
-      if (src.kind === "plugin:dsh-infinite-gen-4") continue;
+      if (src.kind === "plugin:po-gen") continue;
       idx = i;
       break;
     }
@@ -92,7 +92,7 @@ function normalizeUserTurn(decision) {
 // 设置文件由徽标点击（POST /gen4/scope）或 tools/scope.ps1 写入；两个实例都轮询它，
 // 因此切换范围是热生效的（无需重启宿主）。
 const SCOPE_VALUES = new Set(["local", "global"]);
-const SCOPE_FILE = join(process.env.DSH_HOME || join(homedir(), ".dsh"), ".dsh-infinite-gen-4.json");
+const SCOPE_FILE = join(process.env.DSH_HOME || join(homedir(), ".dsh"), ".po-gen.json");
 let scopeFileCache = { value: undefined, mtimeMs: -1 };
 // 当前生效范围（local | global），由 apply() 每次 refresh 时刷新，供工具/自检回报。
 let activeScope = "local";
@@ -133,7 +133,7 @@ function writeScopeFile(scope) {
     scopeFileCache = { value: scope, mtimeMs: statSync(SCOPE_FILE).mtimeMs };
     return true;
   } catch (error) {
-    console.error("[dsh-infinite-gen-4] 写设置文件失败:", error);
+    console.error("[po-gen] 写设置文件失败:", error);
     return false;
   }
 }
@@ -196,7 +196,7 @@ const profileTool = {
   output: objectOutput,
   execute() {
     return {
-      name: "infinite-gen-4",
+      name: "po-gen",
       displayName: "delivery-profile",
       version: PKG_VERSION,
       implementationRevision: IMPLEMENTATION_REVISION,
@@ -377,7 +377,7 @@ function preheatMessage(role, text, form, summary) {
     role,
     content: [{ type: "text", text }],
     // v4 会话格式：生产者 kind 直接命名自己；kind=plugin 的旧包装形状会被宿主拒收
-    source: { kind: "plugin:dsh-infinite-gen-4", form, summary },
+    source: { kind: "plugin:po-gen", form, summary },
   });
 }
 
@@ -388,7 +388,7 @@ function lastRealUserText(messages) {
     const m = messages[i];
     if (!m || m.role !== "user") continue;
     const src = m.source || {};
-    if (src.kind === "plugin:dsh-infinite-gen-4") continue;
+    if (src.kind === "plugin:po-gen") continue;
     return armorTextOf(m.content);
   }
   return "";
@@ -411,7 +411,7 @@ function noticeMessage(text, summary) {
     role: "user",
     content: [{ type: "text", text }],
     source: {
-      kind: "plugin:dsh-infinite-gen-4",
+      kind: "plugin:po-gen",
       form: "notice",
       summary,
     },
@@ -425,14 +425,14 @@ function prependContext(message, contexts) {
 function loadConfig() {
   // fail-fast 校验（对齐 repeat-tool-reminder 的加载期快速失败约定）
   if (!Number.isInteger(REANCHOR_EVERY_TURNS) || REANCHOR_EVERY_TURNS < 2)
-    throw new Error("dsh-infinite-gen-4: REANCHOR_EVERY_TURNS must be an integer >= 2");
+    throw new Error("po-gen: REANCHOR_EVERY_TURNS must be an integer >= 2");
   if (!Number.isInteger(POSTEXEC_EVERY_ACTIONS) || POSTEXEC_EVERY_ACTIONS < 2)
-    throw new Error("dsh-infinite-gen-4: POSTEXEC_EVERY_ACTIONS must be an integer >= 2");
+    throw new Error("po-gen: POSTEXEC_EVERY_ACTIONS must be an integer >= 2");
   if (!Number.isInteger(MAX_REANCHORS_PER_AGENT) || MAX_REANCHORS_PER_AGENT < 1)
-    throw new Error("dsh-infinite-gen-4: MAX_REANCHORS_PER_AGENT must be an integer >= 1");
+    throw new Error("po-gen: MAX_REANCHORS_PER_AGENT must be an integer >= 1");
 }
 
-export const name = "dsh-infinite-gen-4";
+export const name = "po-gen";
 export const inject = ["tools", "systemPrompt"];
 
 /**
@@ -467,7 +467,7 @@ function declareArmorPreset(ctx) {
           release = () => {};
           return true;
         }
-        console.error("[dsh-infinite-gen-4] 预设登记失败:", error);
+        console.error("[po-gen] 预设登记失败:", error);
         return false;
       }
     })();
@@ -506,7 +506,7 @@ function declareArmorPreset(ctx) {
       }
       release = null;
     },
-    "infinite-gen-4: armor preset",
+    "po-gen: armor preset",
   );
 }
 
@@ -601,9 +601,9 @@ function registerScopeRoute(ctx, config) {
     }
   };
   try {
-    ctx.effect(() => webServer.register({ kind: "exact", path: "/gen4/scope", handler }), "infinite-gen-4: scope route");
+    ctx.effect(() => webServer.register({ kind: "exact", path: "/gen4/scope", handler }), "po-gen: scope route");
   } catch (error) {
-    console.error("[dsh-infinite-gen-4] scope 路由注册失败:", error);
+    console.error("[po-gen] scope 路由注册失败:", error);
     scopeRouteRegistered = false;
     return false;
   }
@@ -650,7 +650,7 @@ export function apply(ctx, config) {
       try {
         disposeActive = activate(ctx, config);
       } catch (error) {
-        console.error("[dsh-infinite-gen-4] 启用失败:", error);
+        console.error("[po-gen] 启用失败:", error);
         disposeActive = null;
       }
       return;
@@ -680,7 +680,7 @@ export function apply(ctx, config) {
         disposeActive = null;
       }
     },
-    "infinite-gen-4: scope",
+    "po-gen: scope",
   );
 }
 
@@ -694,7 +694,7 @@ function activate(ctx, config) {
 
   // 破甲实例：此处即启用完整框架。
   own(ctx.systemPrompt.section({
-    name: "infinite-gen-4:global-system-prompt",
+    name: "po-gen:global-system-prompt",
     order: 100,
     text: PROMPT_TEXT,
   }));
@@ -725,7 +725,7 @@ function activate(ctx, config) {
         csv = null;
       }
       return {
-        name: "infinite-gen-4",
+        name: "po-gen",
         version: PKG_VERSION,
         implementationRevision: IMPLEMENTATION_REVISION,
         promptSetHash: PROMPT_SET_HASH,
@@ -758,7 +758,7 @@ function activate(ctx, config) {
     }
   } catch (error) {
     // 多会话同时挂载同名投影时以先注册者为准，不影响其余框架能力。
-    console.error("[dsh-infinite-gen-4] armor 投影注册失败:", error);
+    console.error("[po-gen] armor 投影注册失败:", error);
   }
 
   // 再注入顾问状态（per-agent，纯内存，不持久化）
@@ -841,7 +841,7 @@ function activate(ctx, config) {
           (m) =>
             m &&
             m.source &&
-            m.source.kind === "plugin:dsh-infinite-gen-4" &&
+            m.source.kind === "plugin:po-gen" &&
             m.source.form === "notice" &&
             Array.isArray(m.content) &&
             m.content[0] &&

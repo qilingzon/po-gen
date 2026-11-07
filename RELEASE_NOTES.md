@@ -1,7 +1,7 @@
-# RELEASE NOTES · dsh-infinite-gen-4 v0.5.62-lab-20261025
+# RELEASE NOTES · po-gen v0.5.62-lab-20261025
 
 > 由 `node .diag/build_release.js` 生成；逐文件 SHA256 见同目录 `MANIFEST.json`。
-> 源目录：`D:\deepseek\armor-lab\gen4_home\plugins\dsh-infinite-gen-4`（lab 规范源）。**发布件不含 `*.bak*` / `.REJECTED.md` / node_modules。**
+> 源目录：`D:\deepseek\armor-lab\gen4_home\plugins\po-gen`（lab 规范源）。**发布件不含 `*.bak*` / `.REJECTED.md` / node_modules。**
 
 ## 0. 本版变更（0.5.62）
 
@@ -35,7 +35,7 @@ dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.62
   多出一个不一致变量；现已归零（见 `progress.md`）。
 - **变体切换**：`GEN4_VARIANT=<名>` → `prompts/variants/<名>.md`；默认 `b37-coldstart`。
   本次发布含 **21 个变体**。
-- **运行期加载的是 profile 的物化副本**（`<home>/profiles/<profile>/node_modules/dsh-infinite-gen-4`），
+- **运行期加载的是 profile 的物化副本**（`<home>/profiles/<profile>/node_modules/po-gen`），
   **不是** `<home>/plugins/` 源目录 —— 改源不生效是常态。发布/安装必须走
   `.diag/sync_plugin_to_profile.ps1`（逐文件 SHA256 + 变体存在性断言，失败 exit 3）。
 
@@ -45,7 +45,7 @@ dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.62
 | --- | --- | --- |
 | `upstream-v040`（官方原版 3 KB，逐字节相同） | **61%** | 目前测得最高；措辞中性、脸上不写"破甲/越狱" |
 | `b37-coldstart`（默认，25 KB） | **56%** | 桌面端当前安装的就是它 |
-| `main`（`prompts/infinite-gen-4.md`，lab 源为 slim v1 2 KB） | 17% | 注意：桌面端那份 main 是 24 KB legacy，**与 lab 不同** |
+| `main`（`prompts/po-gen.md`，lab 源为 slim v1 2 KB） | 17% | 注意：桌面端那份 main 是 24 KB legacy，**与 lab 不同** |
 | `window-v042live`（本窗口真机提示词，含 harness 前言） | **0%** | 实测最差，仅作对照件保留 |
 
 ## 3. 已知问题（如实）

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install.sh — 安装 / 更新 / 回滚 dsh-infinite-gen-4（无限四代）
+# install.sh — 安装 / 更新 / 回滚 po-gen（无限四代）
 #
 # 用法：
 #   ./install.sh                       # 装最新 release
@@ -13,8 +13,8 @@
 # 设计原则：先备份、后覆盖；每一步都回读；失败即停。
 set -euo pipefail
 
-PLUGIN="dsh-infinite-gen-4"
-REPO="${GEN4_REPO:-qilingzon/dsh-infinite-gen-4}"
+PLUGIN="po-gen"
+REPO="${GEN4_REPO:-qilingzon/po-gen}"
 VERSION=""
 PROFILE="desktop"
 DRY_RUN=0

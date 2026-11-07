@@ -10,18 +10,18 @@
 
 ## 1. 装完没变化
 
-宿主加载的是 **profile 物化副本**：`<DSH_HOME>/profiles/<profile>/node_modules/dsh-infinite-gen-4`，不是 `<DSH_HOME>/plugins/` 源目录。
+宿主加载的是 **profile 物化副本**：`<DSH_HOME>/profiles/<profile>/node_modules/po-gen`，不是 `<DSH_HOME>/plugins/` 源目录。
 
 ```powershell
 # 看三处实际版本
-Get-ChildItem "$env:USERPROFILE\.dsh\{plugins,node_modules,profiles\desktop\node_modules}\dsh-infinite-gen-4\package.json" |
+Get-ChildItem "$env:USERPROFILE\.dsh\{plugins,node_modules,profiles\desktop\node_modules}\po-gen\package.json" |
   ForEach-Object { "$($_.FullName): " + (Get-Content $_.FullName -Raw | ConvertFrom-Json).version }
 ```
 
 三处版本必须一致；不一致就重跑安装器：
 
 ```powershell
-irm https://github.com/qilingzon/dsh-infinite-gen-4/releases/latest/download/install.ps1 -OutFile "$env:TEMP\gen4-install.ps1"
+irm https://github.com/qilingzon/po-gen/releases/latest/download/install.ps1 -OutFile "$env:TEMP\gen4-install.ps1"
 & "$env:TEMP\gen4-install.ps1" -Force
 ```
 
@@ -44,7 +44,7 @@ Get-Process "DeepSeek Harness" | Select-Object Id,StartTime
 非 `mode: armor` 的实例只登记预设、不做注入。要在 headless 里生效，在 profile 的 `cordis.patch.yml` 里声明：
 
 ```yaml
-- id: infinite-gen-4
+- id: po-gen
   config:
     mode: armor
 ```

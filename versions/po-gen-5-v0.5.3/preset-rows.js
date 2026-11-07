@@ -190,7 +190,7 @@ export const ROWS = [
   },
   {
     "id": "armor-gen4",
-    "name": "dsh-infinite-gen-4",
+    "name": "po-gen",
     "config": {
       "mode": "armor",
       "via": "preset"

@@ -6,7 +6,7 @@
 $ErrorActionPreference = 'Continue'
 $home4 = 'D:\deepseek\armor-lab\gen4_home'
 $profiles = @('gen3-hl', 'gen4-hl', 'gen4-zt-hl', 'gen4-lab')
-$plugins = @('dsh-infinite-gen-3', 'dsh-infinite-gen-4')
+$plugins = @('dsh-infinite-gen-3', 'po-gen')
 $syncedCount = 0
 
 function Sync-PromptDir([string]$srcDir, [string]$dstDir, [string]$label) {

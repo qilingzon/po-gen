@@ -42,7 +42,7 @@
 
 **启用范围（0.5.2 的功能，本版首个对外发布）**
 
-- 徽标可点切换 `local` / `global`，写 `<DSH_HOME>\.dsh-infinite-gen-4.json`，热生效。
+- 徽标可点切换 `local` / `global`，写 `<DSH_HOME>\.po-gen.json`，热生效。
 - 本版补齐三层证据：路由 13 项行为测试、注入矩阵 3/3（全局时无需破甲预设即注入）、
   客户端半体 13 项静态断言。UI 实点由安装方在桌面端验收。
 
@@ -60,7 +60,7 @@
 - 新增 `scope` 设置：`local`（默认，只有选中「破甲模式」的会话注入，其他预设零污染）/
   `global`（本 profile 所有预设都注入）。
 - **徽标就是开关**：点徽标即切换范围，全局时徽标在所有模式显示（`破甲已开启 · 全部模式`）。
-  范围写在 `<DSH_HOME>\.dsh-infinite-gen-4.json`，插件两个实例都轮询它 → 热生效，无需重启宿主。
+  范围写在 `<DSH_HOME>\.po-gen.json`，插件两个实例都轮询它 → 热生效，无需重启宿主。
 - 界面背后的通道：常驻实例注册 `GET/POST /gen4/scope`（同源校验；`GEN4_SCOPE` 已设时拒绝写入）。
 - 命令行等价物：`pwsh -File tools\scope.ps1 [show|local|global]`。
 - 互斥设计：局部时由预设实例注入、全局时由常驻实例注入，二者不会同时注入（避免双份提示词）。
@@ -81,7 +81,7 @@
 **本版是第五代唯一的对外版本**
 - `v0.5.0` tag 曾发出，经 GitHub 安装通道实测报 `ERR_MODULE_NOT_FOUND .../normalize.js`
   （发布清单 `files` 漏项），已按发布标准 R1/R6 撤回，全部改动并入本版。
-- 修复：`package.json` 的 `files` 加入 `normalize.js`；从 `github:qilingzon/dsh-infinite-gen-4#v0.5.1`
+- 修复：`package.json` 的 `files` 加入 `normalize.js`；从 `github:qilingzon/po-gen#v0.5.1`
   安装后三处加载位均含该文件，插件可正常导入。
 
 **机制退役**
@@ -131,7 +131,7 @@
   支持 `-Version` / `-DryRun` / `-Force` / `-NoBackup` / `-ListBackups` / `-Restore` / `-PurgeBackups`。
 - `package.json`：补 `repository` / `homepage` / `bugs` / `license` / `engines` / `keywords`，描述改为中性表述，
   `files` 白名单纳入四个安装脚本与两份文档。
-- 新增 `.diag/pack_release.ps1`：把发布目录打成 `dsh-infinite-gen-4-<ver>.zip` 并生成 `SHA256SUMS.txt`。
+- 新增 `.diag/pack_release.ps1`：把发布目录打成 `po-gen-<ver>.zip` 并生成 `SHA256SUMS.txt`。
 
 **施工期修复（随本版并入，不计入版本驱动）**
 

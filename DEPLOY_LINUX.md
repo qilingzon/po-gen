@@ -83,12 +83,12 @@ DSH_HOME=/opt/dsh DSH_PROFILE=web bash /tmp/po-gen/versions/po-gen-4-v0.4.6/inst
 1. `[0]` 体检模式 `--doctor`：一次列全 5 项不通过项 + 每项给处置命令（`--check` 只报第一个问题）
 2. `[1]` 检查 `$DSH_ROOT` 存在、探测 profile 目录（`DSH_PROFILE` → `web` → `default` → 唯一目录 → 交互选择）、检查 `pnpm`
 3. `[1.5]` **包完整性闸门**：`files` 白名单必须覆盖全部相对导入 —— 不通过则**拒绝安装**（2026-09-21 装崩 DSH 的就是这一项）
-4. `[2]` 复制插件到 `$DSH_HOME/plugins/dsh-infinite-gen-4`（先删旧代 `dsh-infinite-gen-3` 残留；副本里移除 `.git`/`install.sh`/`uninstall.sh`/`*.ps1`）
+4. `[2]` 复制插件到 `$DSH_HOME/plugins/po-gen`（先删旧代 `dsh-infinite-gen-3` 残留；副本里移除 `.git`/`install.sh`/`uninstall.sh`/`*.ps1`）
 5. `[3]` **备份** profile 的 `package.json` → `package.json.bak-<YYYYmmdd-HHMMSS>`
-6. `[4]` **只加依赖**（`file:../../plugins/dsh-infinite-gen-4`），**先不注册 bundle**
+6. `[4]` **只加依赖**（`file:../../plugins/po-gen`），**先不注册 bundle**
 7. `[5]` 跑 `pnpm install`（`node_modules` 里物化出 `index.js` + `preheat.js`）
 8. `[6]` **注册之前**校验插件可解析：文件齐 + 真 ESM `import()` 冒烟
-9. `[7]` 校验通过，**才**把 `dsh-infinite-gen-4` 写进 `dsh.profile.bundles`
+9. `[7]` 校验通过，**才**把 `po-gen` 写进 `dsh.profile.bundles`
 10. `[8]` 完成提示；走 `po-gen.sh install` 时接着**自动重启宿主**
 
 > 顺序为什么必须是这个：**bundle 已注册却解析不到 = DSH 启动即崩**。
@@ -98,24 +98,24 @@ DSH_HOME=/opt/dsh DSH_PROFILE=web bash /tmp/po-gen/versions/po-gen-4-v0.4.6/inst
 
 ```bash
 # 1) 插件目录在
-ls -la ~/.dsh/plugins/dsh-infinite-gen-4/index.js \
-       ~/.dsh/plugins/dsh-infinite-gen-4/preheat.js \
-       ~/.dsh/plugins/dsh-infinite-gen-4/prompts/preheat-card.md
+ls -la ~/.dsh/plugins/po-gen/index.js \
+       ~/.dsh/plugins/po-gen/preheat.js \
+       ~/.dsh/plugins/po-gen/prompts/preheat-card.md
 
 # 2) 包身份正确（B23：必须等于注册 id，否则 profile 起不来、模型 0 调用）
-node -e "console.log(require(process.env.HOME+'/.dsh/plugins/dsh-infinite-gen-4/package.json').name)"
-#   期望： dsh-infinite-gen-4
+node -e "console.log(require(process.env.HOME+'/.dsh/plugins/po-gen/package.json').name)"
+#   期望： po-gen
 
 # 3) 版本串（期望 0.4.6）
-node -e "console.log(require(process.env.HOME+'/.dsh/plugins/dsh-infinite-gen-4/package.json').version)"
-grep -m1 'version:' ~/.dsh/plugins/dsh-infinite-gen-4/index.js
+node -e "console.log(require(process.env.HOME+'/.dsh/plugins/po-gen/package.json').version)"
+grep -m1 'version:' ~/.dsh/plugins/po-gen/index.js
 
-# 4) profile 已被改写（应有 file: 依赖 + bundles 里出现 dsh-infinite-gen-4）
-grep -n 'dsh-infinite-gen-4' ~/.dsh/profiles/*/package.json
+# 4) profile 已被改写（应有 file: 依赖 + bundles 里出现 po-gen）
+grep -n 'po-gen' ~/.dsh/profiles/*/package.json
 ls ~/.dsh/profiles/*/package.json.bak-*        # 备份应在
 
 # 5) 插件能被 Node 解析（ESM 导入冒烟）
-node --input-type=module -e "import('$HOME/.dsh/plugins/dsh-infinite-gen-4/index.js').then(m=>console.log('IMPORT-OK',Object.keys(m).join(',')))"
+node --input-type=module -e "import('$HOME/.dsh/plugins/po-gen/index.js').then(m=>console.log('IMPORT-OK',Object.keys(m).join(',')))"
 #   期望： IMPORT-OK apply,inject,name
 ```
 
@@ -130,7 +130,7 @@ bash /tmp/po-gen/versions/po-gen-4-v0.4.6/uninstall.sh
 
 # B) 手工：恢复备份的 package.json + 删插件目录
 cp ~/.dsh/profiles/<profile>/package.json.bak-<ts> ~/.dsh/profiles/<profile>/package.json
-rm -rf ~/.dsh/plugins/dsh-infinite-gen-4
+rm -rf ~/.dsh/plugins/po-gen
 # 然后按第 3 节重启宿主
 ```
 

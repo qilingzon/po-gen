@@ -1,7 +1,7 @@
-# RELEASE NOTES · dsh-infinite-gen-4 v0.5.3-lab-20261024
+# RELEASE NOTES · po-gen v0.5.3-lab-20261024
 
 > 由 `node .diag/build_release.js` 生成；逐文件 SHA256 见同目录 `MANIFEST.json`。
-> 源目录：`D:\deepseek\armor-lab\gen4_home\plugins\dsh-infinite-gen-4`（lab 规范源）。**发布件不含 `*.bak*` / `.REJECTED.md` / node_modules。**
+> 源目录：`D:\deepseek\armor-lab\gen4_home\plugins\po-gen`（lab 规范源）。**发布件不含 `*.bak*` / `.REJECTED.md` / node_modules。**
 
 ## 0. 本版变更（0.5.2 → 0.5.3，type=bugfix）
 
@@ -27,7 +27,7 @@
 
 ### 0.3 启用范围（0.5.2 功能的首个对外发布）
 
-徽标可点切换 `local` / `global`；写入 `<DSH_HOME>\.dsh-infinite-gen-4.json`，两个插件实例轮询它，热生效。
+徽标可点切换 `local` / `global`；写入 `<DSH_HOME>\.po-gen.json`，两个插件实例轮询它，热生效。
 本版补了 licence 之前缺的三层证据：
 
 - 路由行为测试 13/13（GET 默认 local、POST 落盘、回读、非法值 400、非法方法 405、跨站 403、
@@ -59,7 +59,7 @@ UI 实点仍由安装方在桌面端验收——本版不声称"界面已点过"
 ### 0.6 回滚
 
 - 插件回滚：`install.ps1 -Restore`（列 `-ListBackups`）或装回上一版 zip。
-- 设置回滚：删除 `<DSH_HOME>\.dsh-infinite-gen-4.json` 即回到默认 `local`。
+- 设置回滚：删除 `<DSH_HOME>\.po-gen.json` 即回到默认 `local`。
 - 变体回滚：`GEN4_VARIANT=b37-coldstart` 可切回旧提示词做对照。
 > 说明：§1–§4 由 build_release.js 模板继承，其中变体交付率与电池数字截至 0.4.2–0.4.10，属**历史数据**。
 
@@ -72,7 +72,7 @@ UI 实点仍由安装方在桌面端验收——本版不声称"界面已点过"
   多出一个不一致变量；现已归零（见 `progress.md`）。
 - **变体切换**：`GEN4_VARIANT=<名>` → `prompts/variants/<名>.md`；默认 `b37-coldstart`。
   本次发布含 **21 个变体**。
-- **运行期加载的是 profile 的物化副本**（`<home>/profiles/<profile>/node_modules/dsh-infinite-gen-4`），
+- **运行期加载的是 profile 的物化副本**（`<home>/profiles/<profile>/node_modules/po-gen`），
   **不是** `<home>/plugins/` 源目录 —— 改源不生效是常态。发布/安装必须走
   `.diag/sync_plugin_to_profile.ps1`（逐文件 SHA256 + 变体存在性断言，失败 exit 3）。
 
@@ -82,7 +82,7 @@ UI 实点仍由安装方在桌面端验收——本版不声称"界面已点过"
 | --- | --- | --- |
 | `upstream-v040`（官方原版 3 KB，逐字节相同） | **61%** | 目前测得最高；措辞中性、脸上不写"破甲/越狱" |
 | `b37-coldstart`（默认，25 KB） | **56%** | 桌面端当前安装的就是它 |
-| `main`（`prompts/infinite-gen-4.md`，lab 源为 slim v1 2 KB） | 17% | 注意：桌面端那份 main 是 24 KB legacy，**与 lab 不同** |
+| `main`（`prompts/po-gen.md`，lab 源为 slim v1 2 KB） | 17% | 注意：桌面端那份 main 是 24 KB legacy，**与 lab 不同** |
 | `window-v042live`（本窗口真机提示词，含 harness 前言） | **0%** | 实测最差，仅作对照件保留 |
 
 ## 3. 已知问题（如实）

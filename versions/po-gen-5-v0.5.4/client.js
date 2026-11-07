@@ -1,4 +1,4 @@
-/* 无限四代 (dsh-infinite-gen-4) client half — realtime "破甲已开启" badge.
+/* 无限四代 (po-gen) client half — realtime "破甲已开启" badge.
  * Reads the host "armor" session projection via useProjection:
  *   user message -> breathing pulse "思考中…"
  *   assistant message -> ✓ 通过 (green flash) | ◐ 未完交付 (yellow flash)
@@ -9,7 +9,7 @@
  *   设置走宿主 HTTP 路由 /gen4/scope：GET 读、POST 写（scope / showBadge 可单独写）。
  */
 window.__ModuleLoader__.load({
-  id: "dsh-infinite-gen-4",
+  id: "po-gen",
   factory: (require) => {
     var module = { exports: {} };
     var exports = module.exports;
@@ -376,7 +376,7 @@ window.__ModuleLoader__.load({
       );
     }
 
-    exports.name = "dsh-infinite-gen-4";
+    exports.name = "po-gen";
     exports.inject = inject;
     exports.apply = apply;
     return module.exports;

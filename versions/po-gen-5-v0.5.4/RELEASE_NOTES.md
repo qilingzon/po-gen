@@ -1,7 +1,7 @@
-# RELEASE NOTES · dsh-infinite-gen-4 v0.5.4-lab-20261024
+# RELEASE NOTES · po-gen v0.5.4-lab-20261024
 
 > 由 `node .diag/build_release.js` 生成；逐文件 SHA256 见同目录 `MANIFEST.json`。
-> 源目录：`D:\deepseek\armor-lab\gen4_home\plugins\dsh-infinite-gen-4`（lab 规范源）。**发布件不含 `*.bak*` / `.REJECTED.md` / node_modules。**
+> 源目录：`D:\deepseek\armor-lab\gen4_home\plugins\po-gen`（lab 规范源）。**发布件不含 `*.bak*` / `.REJECTED.md` / node_modules。**
 
 ## 0. 本版变更（0.5.3 → 0.5.4，type=feature）
 
@@ -42,7 +42,7 @@
 | `tools/scope.ps1` | 新增 `badge on\|off`；`show` 同时打印 scope 与 badge 的文件值 / 环境变量 / 生效值；环境变量覆盖时只提示不写盘 |
 | `README.md` | 「启用范围」章节改写为「破甲设置：两个独立开关」，加四种组合表与文案对照；环境变量表补 `GEN4_SHOW_BADGE` |
 
-两个开关都是**热生效**：设置写在 `<DSH_HOME>\.dsh-infinite-gen-4.json`，插件两个实例每 4 秒轮询，
+两个开关都是**热生效**：设置写在 `<DSH_HOME>\.po-gen.json`，插件两个实例每 4 秒轮询，
 不需要重启宿主。
 
 ### 0.3 证据（三层，全部实测）
@@ -65,9 +65,9 @@ S4 是本次最关键的一格：它是「看得见但不注入」这个新组�
 
 ### 0.5 回滚
 
-- 装回旧版：把 profile 依赖里的 `#v0.5.4` 换成 `#v0.5.3` 重装即可（`dsh plugin --profile <p> add github:qilingzon/dsh-infinite-gen-4#v0.5.3`）。
+- 装回旧版：把 profile 依赖里的 `#v0.5.4` 换成 `#v0.5.3` 重装即可（`dsh plugin --profile <p> add github:qilingzon/po-gen#v0.5.3`）。
 - 设置文件兼容：0.5.4 写的 `{"scope":"local","showBadge":true}` 在 0.5.3 里会被忽略 `showBadge` 字段（只读 `scope`），不会报错。
-- 想要「完全回到 0.5.3 行为」：删掉 `<DSH_HOME>\.dsh-infinite-gen-4.json` 即可（默认 local、无徽标）。
+- 想要「完全回到 0.5.3 行为」：删掉 `<DSH_HOME>\.po-gen.json` 即可（默认 local、无徽标）。
 
 > 说明：§1–§4 由 build_release.js 模板继承，其中变体交付率与电池数字截至 0.4.2–0.4.10，属**历史数据**。
 
@@ -80,7 +80,7 @@ S4 是本次最关键的一格：它是「看得见但不注入」这个新组�
   多出一个不一致变量；现已归零（见 `progress.md`）。
 - **变体切换**：`GEN4_VARIANT=<名>` → `prompts/variants/<名>.md`；默认 `b37-coldstart`。
   本次发布含 **21 个变体**。
-- **运行期加载的是 profile 的物化副本**（`<home>/profiles/<profile>/node_modules/dsh-infinite-gen-4`），
+- **运行期加载的是 profile 的物化副本**（`<home>/profiles/<profile>/node_modules/po-gen`），
   **不是** `<home>/plugins/` 源目录 —— 改源不生效是常态。发布/安装必须走
   `.diag/sync_plugin_to_profile.ps1`（逐文件 SHA256 + 变体存在性断言，失败 exit 3）。
 
@@ -90,7 +90,7 @@ S4 是本次最关键的一格：它是「看得见但不注入」这个新组�
 | --- | --- | --- |
 | `upstream-v040`（官方原版 3 KB，逐字节相同） | **61%** | 目前测得最高；措辞中性、脸上不写"破甲/越狱" |
 | `b37-coldstart`（默认，25 KB） | **56%** | 桌面端当前安装的就是它 |
-| `main`（`prompts/infinite-gen-4.md`，lab 源为 slim v1 2 KB） | 17% | 注意：桌面端那份 main 是 24 KB legacy，**与 lab 不同** |
+| `main`（`prompts/po-gen.md`，lab 源为 slim v1 2 KB） | 17% | 注意：桌面端那份 main 是 24 KB legacy，**与 lab 不同** |
 | `window-v042live`（本窗口真机提示词，含 harness 前言） | **0%** | 实测最差，仅作对照件保留 |
 
 ## 3. 已知问题（如实）

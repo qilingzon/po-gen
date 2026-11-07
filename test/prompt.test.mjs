@@ -42,9 +42,27 @@ test("legacy arm stays loadable and distinct (A/B switch)", () => {
 });
 
 test("version and revision are bumped together", () => {
-  assert.equal(pkg.version, "0.5.66");
-  assert.equal(pkg.dsh.version, "0.5.66");
-  assert.match(index, /IMPLEMENTATION_REVISION = "20261106-gen566-verify-1"/);
+  assert.equal(pkg.version, "0.5.70");
+  assert.equal(pkg.dsh.version, "0.5.70");
+  assert.match(index, /IMPLEMENTATION_REVISION = "20261107-gen570-meta-lateral-1"/);
+});
+
+test("response discipline ships as its own section, decoupled from the variant", () => {
+  const ack = read("prompts/response-discipline.md");
+  assert.ok(ack.includes("RESPONSE DISCIPLINE"));
+  assert.ok(ack.includes("先说话") && ack.includes("15 秒") && ack.includes("新消息"));
+  assert.match(index, /name: "po-gen:response-discipline"/);
+  assert.match(index, /order: 101/);
+  assert.match(index, /GEN5_ACK/);
+  // 主变体不受影响：加纪律段不改 b37-lite 的哈希
+  assert.equal(sha(pack), JSON.parse(read("test/fixtures/baseline.json")).prompt);
+});
+
+test("opening module ships with the package and is wired into the pre-step", () => {
+  assert.ok(pkg.files.includes("opening.js"));
+  assert.match(index, /from "\.\/opening\.js"/);
+  assert.match(index, /frameOpening\(next, \{ turn, risky \}\)/);
+  assert.match(index, /"opening-frame"/);
 });
 
 test("soft-reversal module ships with the package and is wired into the score", () => {

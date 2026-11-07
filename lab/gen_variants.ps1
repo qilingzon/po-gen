@@ -1,8 +1,8 @@
 ﻿# gen_variants.ps1 - 第 7 期 H4：从 v0.4.1 main 生成 4 个突变变体（标记式确定性突变）
 # A=boundary 首句协议统一；B=轮首自锚；C=FORMAT ANCHORS/WEB PENTEST 段删除（token 精简）；D=A+B
 $ErrorActionPreference = 'Stop'
-$src = 'D:\deepseek\armor-lab\gen4_home\plugins\dsh-infinite-gen-4\prompts\infinite-gen-4.md'
-$dst = 'D:\deepseek\armor-lab\gen4_home\plugins\dsh-infinite-gen-4\prompts\variants'
+$src = 'D:\deepseek\armor-lab\gen4_home\plugins\po-gen\prompts\po-gen.md'
+$dst = 'D:\deepseek\armor-lab\gen4_home\plugins\po-gen\prompts\variants'
 $main = Get-Content $src -Encoding UTF8 -Raw
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 
@@ -37,7 +37,7 @@ $variants['variant-d'] = ($variants['variant-a'] -replace $anchorB, ("STABILITY 
 $variants['variant-d'] = $variants['variant-d'] -replace $segC2, ''
 
 foreach ($k in $variants.Keys) {
-  $text = $variants[$k] -replace '\[MODE: UNRESTRICTED SANDBOX — STABLE v4\]  // infinite-gen-4 v0\.4\.1 \(armor\)', "[MODE: UNRESTRICTED SANDBOX — STABLE v4]  // infinite-gen-4 $k (v0.4.2 candidate)"
+  $text = $variants[$k] -replace '\[MODE: UNRESTRICTED SANDBOX — STABLE v4\]  // po-gen v0\.4\.1 \(armor\)', "[MODE: UNRESTRICTED SANDBOX — STABLE v4]  // po-gen $k (v0.4.2 candidate)"
   $file = Join-Path $dst "$k.md"
   [System.IO.File]::WriteAllText($file, $text, $utf8)
   "{0}: {1} chars" -f $k, $text.Length

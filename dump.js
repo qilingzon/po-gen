@@ -54,7 +54,7 @@ export function makeDumper(path) {
         manifestPath,
         JSON.stringify(
           {
-            plugin: "dsh-infinite-gen-4",
+            plugin: "po-gen",
             schema: 1,
             startedAt,
             updatedAt: new Date().toISOString(),
@@ -96,7 +96,7 @@ export function makeDumper(path) {
     incomplete.push(entry);
     append(`\n!! INJECT-INCOMPLETE kind=${kind} reason=${reason} at=${entry.at}\n`);
     try {
-      console.error(`dsh-infinite-gen-4: INJECT-INCOMPLETE kind=${kind} reason=${reason}`);
+      console.error(`po-gen: INJECT-INCOMPLETE kind=${kind} reason=${reason}`);
     } catch {
       // 忽略
     }

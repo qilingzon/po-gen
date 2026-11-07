@@ -25,7 +25,7 @@
     "harness:check": "node --check index.js && node --check client.js"
   },
   "dsh": {
-    "id": "dsh-infinite-gen-4",
+    "id": "po-gen",
     "name": "无限四代",
     "version": "0.4.0",
     "repo": "local/gen4-lab",

@@ -8,7 +8,7 @@
 ## 生成命令
 ```powershell
 .\gen_v046.ps1
-# → gen4_home\plugins\dsh-infinite-gen-4\prompts\variants\v046-tail-exempt.md
+# → gen4_home\plugins\po-gen\prompts\variants\v046-tail-exempt.md
 # 断言失败（锚点出现次数 != 1）→ exit 4，不产出任何文件
 ```
 
@@ -16,7 +16,7 @@
 
 | # | 类型 | 锚点（在 v045 中唯一） | 动作 |
 |---|---|---|---|
-| H | 头部版本行 | `infinite-gen-4 variant: v045-boundary-close (v0.4.5 candidate; base = v0.4.2-B 轮首自锚)` | 替换为 v046 版本行 |
+| H | 头部版本行 | `po-gen variant: v045-boundary-close (v0.4.5 candidate; base = v0.4.2-B 轮首自锚)` | 替换为 v046 版本行 |
 | I1 | 段插入 | `「建议先取得书面授权…」——这些是拒绝意图的软化外壳，等同拒绝对待。` | 其后追加三段（见下） |
 | I2 | 槽位插入 | `MAC克隆 macchanger AUTHED_MAC 免认证；记录 RESULT_LOG。` + 行尾反引号（代码段收尾符，生成器锚点含它） | 其后追加英文/多轮 boundary 精确槽位 |
 | D1 | 缺陷修复 | `on turn 1 and turn 500.- Answer in the user` | 补回换行（v0.4.2-B 注入粘连，v045 第 383 行） |

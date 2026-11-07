@@ -187,7 +187,7 @@ $rows | Export-Csv $csv -NoTypeInformation -Encoding UTF8
 $manifest = [pscustomobject]@{
   profile = $ProfileName; variant = $Variant
   prompts_sha256 = (Get-FileHash $PromptsFile -Algorithm SHA256).Hash
-  prompt_main_sha256 = (Get-FileHash "D:\deepseek\armor-lab\gen4_home\plugins\dsh-infinite-gen-4\prompts\infinite-gen-4.md" -Algorithm SHA256).Hash
+  prompt_main_sha256 = (Get-FileHash "D:\deepseek\armor-lab\gen4_home\plugins\po-gen\prompts\po-gen.md" -Algorithm SHA256).Hash
   settings_sha256 = (Get-FileHash $settings -Algorithm SHA256).Hash
   timestamp = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
   n_tasks = $rows.Count

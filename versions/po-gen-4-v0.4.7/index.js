@@ -10,14 +10,14 @@ import { makeDumper } from "./dump.js";
 const VARIANT = (process.env.GEN4_VARIANT || "b37-coldstart").replace(/[^\w.-]/g, "");
 const PROMPT_URL = new URL(
   VARIANT === "main"
-    ? "./prompts/infinite-gen-4.md"
+    ? "./prompts/po-gen.md"
     : `./prompts/variants/${VARIANT}.md`,
   import.meta.url,
 );
 const PROMPT_TEXT = readFileSync(
   existsSync(PROMPT_URL)
     ? PROMPT_URL
-    : new URL("./prompts/infinite-gen-4.md", import.meta.url),
+    : new URL("./prompts/po-gen.md", import.meta.url),
   "utf8",
 );
 
@@ -55,7 +55,7 @@ const profileTool = {
   output: objectOutput,
   execute() {
     return {
-      name: "infinite-gen-4",
+      name: "po-gen",
       displayName: "无限四代",
       version: "0.4.7",
       baseline: "infinite-gen-3 v0.4.2 (fusion-v040 champion skeleton) + speed discipline v4 + provider-stealth v4 + client turnBoundary busy-fix + pending-inbox guard (v0.4.4)",
@@ -248,7 +248,7 @@ function preheatMessage(role, text, form, summary) {
     id: randomUUID(),
     role,
     content: [{ type: "text", text }],
-    source: { kind: "plugin", plugin: "dsh-infinite-gen-4", form, summary },
+    source: { kind: "plugin", plugin: "po-gen", form, summary },
   });
 }
 
@@ -259,7 +259,7 @@ function lastRealUserText(messages) {
     const m = messages[i];
     if (!m || m.role !== "user") continue;
     const src = m.source || {};
-    if (src.plugin === "dsh-infinite-gen-4") continue;
+    if (src.plugin === "po-gen") continue;
     return armorTextOf(m.content);
   }
   return "";
@@ -279,7 +279,7 @@ function noticeMessage(text, summary) {
     content: [{ type: "text", text }],
     source: {
       kind: "plugin",
-      plugin: "dsh-infinite-gen-4",
+      plugin: "po-gen",
       form: "notice",
       summary,
     },
@@ -300,14 +300,14 @@ function prependContext(message, contexts) {
 function loadConfig() {
   // fail-fast 校验（对齐 repeat-tool-reminder 的加载期快速失败约定）
   if (!Number.isInteger(REANCHOR_EVERY_TURNS) || REANCHOR_EVERY_TURNS < 2)
-    throw new Error("dsh-infinite-gen-4: REANCHOR_EVERY_TURNS must be an integer >= 2");
+    throw new Error("po-gen: REANCHOR_EVERY_TURNS must be an integer >= 2");
   if (!Number.isInteger(POSTEXEC_EVERY_ACTIONS) || POSTEXEC_EVERY_ACTIONS < 2)
-    throw new Error("dsh-infinite-gen-4: POSTEXEC_EVERY_ACTIONS must be an integer >= 2");
+    throw new Error("po-gen: POSTEXEC_EVERY_ACTIONS must be an integer >= 2");
   if (!Number.isInteger(MAX_REANCHORS_PER_AGENT) || MAX_REANCHORS_PER_AGENT < 1)
-    throw new Error("dsh-infinite-gen-4: MAX_REANCHORS_PER_AGENT must be an integer >= 1");
+    throw new Error("po-gen: MAX_REANCHORS_PER_AGENT must be an integer >= 1");
 }
 
-export const name = "dsh-infinite-gen-4";
+export const name = "po-gen";
 export const inject = ["tools", "systemPrompt"];
 
 export function apply(ctx) {
@@ -316,7 +316,7 @@ export function apply(ctx) {
   ctx.effect(() => {
     if (!ARMOR_ON) return;
     return ctx.systemPrompt.section({
-      name: "infinite-gen-4:global-system-prompt",
+      name: "po-gen:global-system-prompt",
       order: 100,
       text: PROMPT_TEXT,
     });
@@ -336,7 +336,7 @@ export function apply(ctx) {
           init: () => ({ running: false, verdict: null, words: [], partial: false }),
           apply: armorProjectionApply,
         }),
-      "infinite-gen-4: armor projection",
+      "po-gen: armor projection",
     );
   }
 
@@ -445,7 +445,7 @@ export function apply(ctx) {
           (m) =>
             m &&
             m.source &&
-            m.source.plugin === "dsh-infinite-gen-4" &&
+            m.source.plugin === "po-gen" &&
             m.source.form === "notice" &&
             Array.isArray(m.content) &&
             m.content[0] &&

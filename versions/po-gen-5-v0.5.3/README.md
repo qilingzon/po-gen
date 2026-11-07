@@ -1,9 +1,9 @@
-# 无限四代 · dsh-infinite-gen-4
+# 无限四代 · po-gen
 
 > DeepSeek Harness 插件：把「破甲模式」注册成一个**可选的 agent preset**。
 > 只有你显式选中它的会话才会注入交付引擎提示词；其他会话、其他模式**零注入**。
 
-[![version](https://img.shields.io/badge/version-0.5.3-2f6feb)](https://github.com/qilingzon/dsh-infinite-gen-4/releases)
+[![version](https://img.shields.io/badge/version-0.5.3-2f6feb)](https://github.com/qilingzon/po-gen/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-555)]
 
@@ -60,7 +60,7 @@ DSH 的两个位置先记住（下文用占位符表示）：
 然后在 PowerShell 里粘一行：
 
 ```powershell
-irm https://raw.githubusercontent.com/qilingzon/dsh-infinite-gen-4/main/install.ps1 -OutFile "$env:TEMP\gen4-install.ps1"; & "$env:TEMP\gen4-install.ps1"
+irm https://raw.githubusercontent.com/qilingzon/po-gen/main/install.ps1 -OutFile "$env:TEMP\gen4-install.ps1"; & "$env:TEMP\gen4-install.ps1"
 ```
 
 脚本会依次做：定位 `$DSH_HOME` → 查最新 release → 下载 zip → **校验 SHA256** →
@@ -74,7 +74,7 @@ irm https://raw.githubusercontent.com/qilingzon/dsh-infinite-gen-4/main/install.
 & "$env:TEMP\gen4-install.ps1" -Profile desktop
 ```
 
-> macOS / Linux：`curl -fsSL https://raw.githubusercontent.com/qilingzon/dsh-infinite-gen-4/main/install.sh -o /tmp/gen4-install.sh && bash /tmp/gen4-install.sh`
+> macOS / Linux：`curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/main/install.sh -o /tmp/gen4-install.sh && bash /tmp/gen4-install.sh`
 > （参数同理直接加在后面：`bash /tmp/gen4-install.sh -v 0.5.3 -n`）
 
 ### 方式 B：走 DSH 自己的插件管理器（等价的「正规军」路线）
@@ -83,8 +83,8 @@ irm https://raw.githubusercontent.com/qilingzon/dsh-infinite-gen-4/main/install.
 
 ```bash
 # 先退出桌面端，再在终端里执行
-dsh plugin --profile desktop add github:qilingzon/dsh-infinite-gen-4#v0.5.3
-dsh plugin --profile desktop why dsh-infinite-gen-4   # 确认已入依赖树
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.3
+dsh plugin --profile desktop why po-gen   # 确认已入依赖树
 ```
 
 它由 pnpm 管理版本、写进 `profiles/desktop/package.json`，升级时把 `#v0.5.3` 换成新 tag 即可。
@@ -92,20 +92,20 @@ dsh plugin --profile desktop why dsh-infinite-gen-4   # 确认已入依赖树
 
 ### 方式 C：手动装 zip（完全离线）
 
-1. 到 [Releases](https://github.com/qilingzon/dsh-infinite-gen-4/releases) 下载
-   `dsh-infinite-gen-4-<版本>.zip` 与 `SHA256SUMS.txt`；
-2. 校验：`certutil -hashfile dsh-infinite-gen-4-0.5.3.zip SHA256`（macOS：`shasum -a 256`）；
-3. 解压后把整个 `dsh-infinite-gen-4` 目录复制到这三处（已存在就覆盖）：
-   - `$DSH_HOME\plugins\dsh-infinite-gen-4`
-   - `$DSH_HOME\node_modules\dsh-infinite-gen-4`
-   - `$DSH_HOME\profiles\$PROFILE\node_modules\dsh-infinite-gen-4`
+1. 到 [Releases](https://github.com/qilingzon/po-gen/releases) 下载
+   `po-gen-<版本>.zip` 与 `SHA256SUMS.txt`；
+2. 校验：`certutil -hashfile po-gen-0.5.3.zip SHA256`（macOS：`shasum -a 256`）；
+3. 解压后把整个 `po-gen` 目录复制到这三处（已存在就覆盖）：
+   - `$DSH_HOME\plugins\po-gen`
+   - `$DSH_HOME\node_modules\po-gen`
+   - `$DSH_HOME\profiles\$PROFILE\node_modules\po-gen`
 4. 启动 DeepSeek Harness。
 
 ## 验证装没装上
 
 ```powershell
 # 三条都应输出 0.5.3
-Get-Content "$env:USERPROFILE\.dsh\plugins\dsh-infinite-gen-4\package.json" | Select-String '"version"'
+Get-Content "$env:USERPROFILE\.dsh\plugins\po-gen\package.json" | Select-String '"version"'
 ```
 
 更直观的验证：打开桌面端 → 新建会话 → Agent 预设里能看到 **破甲模式**；
@@ -119,7 +119,7 @@ Get-Content "$env:USERPROFILE\.dsh\plugins\dsh-infinite-gen-4\package.json" | Se
 
 ```powershell
 # 更新到最新 release（脚本自动取 latest；版本相同会跳过，不重复覆盖）
-irm https://raw.githubusercontent.com/qilingzon/dsh-infinite-gen-4/main/install.ps1 -OutFile "$env:TEMP\gen4-install.ps1"; & "$env:TEMP\gen4-install.ps1"
+irm https://raw.githubusercontent.com/qilingzon/po-gen/main/install.ps1 -OutFile "$env:TEMP\gen4-install.ps1"; & "$env:TEMP\gen4-install.ps1"
 ```
 
 已经下载过脚本的，直接：`.\install.ps1 -Force`。它会：比对当前版本 → 若已是最新则退出（不重复覆盖）→
@@ -128,8 +128,8 @@ irm https://raw.githubusercontent.com/qilingzon/dsh-infinite-gen-4/main/install.
 方式 B 用户：
 
 ```bash
-dsh plugin --profile desktop remove dsh-infinite-gen-4
-dsh plugin --profile desktop add github:qilingzon/dsh-infinite-gen-4#v0.5.3
+dsh plugin --profile desktop remove po-gen
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.3
 ```
 
 ## 回滚
@@ -149,14 +149,14 @@ dsh plugin --profile desktop add github:qilingzon/dsh-infinite-gen-4#v0.5.3
 
 ```powershell
 # Windows
-irm https://raw.githubusercontent.com/qilingzon/dsh-infinite-gen-4/main/uninstall.ps1 -OutFile "$env:TEMP\gen4-uninstall.ps1"; & "$env:TEMP\gen4-uninstall.ps1"
+irm https://raw.githubusercontent.com/qilingzon/po-gen/main/uninstall.ps1 -OutFile "$env:TEMP\gen4-uninstall.ps1"; & "$env:TEMP\gen4-uninstall.ps1"
 # macOS / Linux
-curl -fsSL https://raw.githubusercontent.com/qilingzon/dsh-infinite-gen-4/main/uninstall.sh -o /tmp/gen4-uninstall.sh && bash /tmp/gen4-uninstall.sh
+curl -fsSL https://raw.githubusercontent.com/qilingzon/po-gen/main/uninstall.sh -o /tmp/gen4-uninstall.sh && bash /tmp/gen4-uninstall.sh
 ```
 
-做的事情只有三件：删 `$DSH_HOME\plugins\dsh-infinite-gen-4`、删两处 `node_modules\dsh-infinite-gen-4`、
+做的事情只有三件：删 `$DSH_HOME\plugins\po-gen`、删两处 `node_modules\po-gen`、
 把 profile 依赖里的条目摘掉。**不会**删你的会话、不删 `plugin-backups`（留给你后悔）。
-方式 B 用户的等价命令：`dsh plugin --profile desktop remove dsh-infinite-gen-4`。
+方式 B 用户的等价命令：`dsh plugin --profile desktop remove po-gen`。
 
 卸载后重启应用，「破甲模式」预设与徽标即消失；已有会话下次打开会回落到默认预设。
 
@@ -181,7 +181,7 @@ curl -fsSL https://raw.githubusercontent.com/qilingzon/dsh-infinite-gen-4/main/u
 | 局部（默认） | `破甲已开启 · 无限四代` | 变成全局：所有模式都注入，徽标在所有模式显示 |
 | 全局 | `破甲已开启 · 全部模式` | 变回局部：只有破甲模式注入 |
 
-切换是**热生效**的：范围写在 `<DSH_HOME>\.dsh-infinite-gen-4.json`，插件两个实例都在轮询它，
+切换是**热生效**的：范围写在 `<DSH_HOME>\.po-gen.json`，插件两个实例都在轮询它，
 不需要重启宿主；已经在跑的会话下一轮就按新范围走。
 
 不想用界面时，命令行等价物：
@@ -217,7 +217,7 @@ pwsh -File tools\scope.ps1 local      # 只给破甲模式（默认）
 ## 目录结构
 
 ```
-dsh-infinite-gen-4/
+po-gen/
 ├─ index.js            # 插件主体：预设登记、提示词注入、状态投影、工作提醒
 ├─ client.js           # 客户端状态条（徽标）
 ├─ preheat.js          # 冷启动预热（读 progress.md 顶部一条未完成项）

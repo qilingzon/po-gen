@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================================
-#  dsh-infinite-gen-4  ——  DeepSeek Harness 「无限四代」一键安装脚本（Linux / macOS）
+#  po-gen  ——  DeepSeek Harness 「无限四代」一键安装脚本（Linux / macOS）
 #
 #  v2 · 2026-09-21 · FAIL-SAFE REWRITE
 #  为什么重写：v1 的顺序是「先改 profile 的 package.json（注册 bundle）→ 再 pnpm install」。
@@ -24,7 +24,7 @@
 # ============================================================================
 set -euo pipefail
 
-PLUGIN_NAME="dsh-infinite-gen-4"
+PLUGIN_NAME="po-gen"
 PLUGIN_LABEL="无限四代"
 OLD_PLUGIN_NAME="dsh-infinite-gen-3"
 DSH_ROOT="${DSH_HOME:-$HOME/.dsh}"
@@ -92,7 +92,7 @@ find_profile_dir() {
 # 为什么单独做：`--check` 遇到第一个问题就退出，用户只看到一条错、不知道还有没有别的。
 # doctor 把 5 项全查一遍，**每项不通过都直接给出可复制的修复命令**，不修改任何文件。
 if [[ "${1:-}" == "--doctor" ]]; then
-  echo "=== dsh-infinite-gen-4 安装体检 (doctor) ==="
+  echo "=== po-gen 安装体检 (doctor) ==="
   echo "DSH_HOME = $DSH_ROOT"
   echo ""
   dfails=0

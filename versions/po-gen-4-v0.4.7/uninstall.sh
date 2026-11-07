@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================================
-#  dsh-infinite-gen-4  ·  DeepSeek 破甲插件「无限四代」一键卸载脚本
+#  po-gen  ·  DeepSeek 破甲插件「无限四代」一键卸载脚本
 #  适用：Linux / macOS（Windows 用户请用 uninstall.ps1）
 # ============================================================================
 #  用法：chmod +x uninstall.sh && ./uninstall.sh
@@ -14,7 +14,7 @@
 # ============================================================================
 set -euo pipefail
 
-PLUGIN_NAME="dsh-infinite-gen-4"
+PLUGIN_NAME="po-gen"
 PLUGIN_LABEL="无限四代"
 OLD_PLUGIN_NAME="dsh-infinite-gen-3"
 ALL_NAMES=("$PLUGIN_NAME" "$OLD_PLUGIN_NAME")

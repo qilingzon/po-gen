@@ -1,6 +1,6 @@
 ﻿# 无限四代 · 启用范围设置（命令行等价物）
 #
-# 徽标点击 = 本脚本的图形版：范围写在 <DSH_HOME>\.dsh-infinite-gen-4.json，
+# 徽标点击 = 本脚本的图形版：范围写在 <DSH_HOME>\.po-gen.json，
 # 插件两个实例都轮询该文件，改完热生效（无需重启宿主）。
 #
 #   local  —— 只有「破甲模式」预设的会话注入框架（默认，不污染其他模式）
@@ -28,7 +28,7 @@ $ErrorActionPreference = 'Stop'
 if ([string]::IsNullOrWhiteSpace($DshHome)) {
   $DshHome = Join-Path $env:USERPROFILE '.dsh'
 }
-$file = Join-Path $DshHome '.dsh-infinite-gen-4.json'
+$file = Join-Path $DshHome '.po-gen.json'
 
 function Show-State {
   $fromEnv = $env:GEN4_SCOPE

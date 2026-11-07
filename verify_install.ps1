@@ -42,13 +42,13 @@ foreach ($p in $Profiles) {
 # 4. 快照新鲜度（B14）：profile 自带 node_modules 的插件 prompt 哈希 = 源哈希
 if ($srcDir) {
   $srcHash = ''
-  $sp = Join-Path $srcDir 'prompts\infinite-gen-4.md'
+  $sp = Join-Path $srcDir 'prompts\po-gen.md'
   if ($Generation -ne '4') { $sp = Join-Path $srcDir 'prompts\infinite-gen-3.md' }
   if (Test-Path $sp) { $srcHash = (Get-FileHash $sp).Hash }
   foreach ($p in $Profiles) {
     $snap = Join-Path $DshHome ("profiles\" + $p + "\node_modules\" + $internalId)
     if (Test-Path $snap) {
-      $sp2 = Join-Path $snap 'prompts\infinite-gen-4.md'
+      $sp2 = Join-Path $snap 'prompts\po-gen.md'
       if ($Generation -ne '4') { $sp2 = Join-Path $snap 'prompts\infinite-gen-3.md' }
       if (Test-Path $sp2) {
         $same = (Get-FileHash $sp2).Hash -eq $srcHash

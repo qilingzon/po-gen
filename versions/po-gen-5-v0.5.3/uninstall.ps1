@@ -1,4 +1,4 @@
-﻿# uninstall.ps1 — 卸载 dsh-infinite-gen-4（无限四代）
+﻿# uninstall.ps1 — 卸载 po-gen（无限四代）
 #
 # 做三件事：删三处插件目录 → 摘掉 profile 依赖条目 → 提示重启。
 # 不碰：sessions/、credentials、plugin-backups/、其他插件。
@@ -15,7 +15,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$Plugin = "dsh-infinite-gen-4"
+$Plugin = "po-gen"
 
 function Step($m) { Write-Host ""; Write-Host "==> $m" -ForegroundColor Cyan }
 function Ok($m)   { Write-Host "    [OK] $m" -ForegroundColor Green }

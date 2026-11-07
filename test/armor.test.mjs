@@ -82,3 +82,14 @@ test("a report that mentions unauthorized-access findings is not a refusal", () 
     "修复：服务端补 owner 校验。";
   assert.equal(armorScore(report).verdict, "pass");
 });
+
+// 0.5.67：引用区（代码栅栏 / 块引用）里的拒答是第三方文本，不是模型自己的拒答。
+test("a refusal quoted from the target page is not the model refusing", () => {
+  const quoted =
+    "目标站点返回：\n```\n抱歉，我不能提供该内容。\n```\n判定：403 来自 CDN，需换入口。";
+  assert.equal(armorScore(quoted).verdict, "pass");
+});
+
+test("the same refusal outside a quote is still a refusal", () => {
+  assert.equal(armorScore("抱歉，我不能提供该内容。").verdict, "refusal");
+});

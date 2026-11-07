@@ -8,5 +8,5 @@ $pj = Get-Content 'C:\Users\qiling\.dsh\profiles\desktop\package.json' -Raw -Err
 Write-Output '=== 回滚核验 ==='
 Write-Output ("gen2 解析副本完好: " + (Test-Path $g2))
 Write-Output ("desktop bundles 仍含 gen2: " + ($pj -match 'dsh-infinite-gen-2'))
-Write-Output ("desktop bundles 已无 gen4: " + (-not ($pj -match 'dsh-infinite-gen-4')))
+Write-Output ("desktop bundles 已无 gen4: " + (-not ($pj -match 'po-gen')))
 Write-Output '=== 完成：重启 DSH 桌面端即恢复推送前状态 ==='
