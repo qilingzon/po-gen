@@ -336,8 +336,31 @@ po-gen/
 | 徽标不出现 | 当前会话是 `standard` 预设 | 新建会话并选「破甲模式」 |
 | 安装报 `EPERM` / 文件被占用 | 应用还在跑 | 完全退出（含托盘图标）后重装 |
 | `dsh plugin add` 被拒并自动回滚 | profile 里有一个插件 peer 不满足，整次安装被拦 | 先修 peer，或用方式 A/C 绕过 pnpm |
+| 安装报 `ERR_PNPM_GIT_RESOLVE_FAILED`，`ssh: connect to host github.com port 22: Connection refused` | 那台机器的 git 把 `https://github.com/` 改写成了 `git@github.com:`（ssh），而该网络封了 22 端口 | 见下方「git 走成了 ssh」；或直接用方式 C/D（HTTPS 下载，不经过 git） |
 | 长会话偶发被拒 | 模型侧概率事件，非插件失效 | 同题重开新会话；插件不做自动重投（实测净零收益） |
 | 会话文件打不开 | 0.4.8 及更早的 role 写入缺陷 | 升到 0.4.9+ 即可，旧会话本身未损坏 |
+
+### git 走成了 ssh（`ERR_PNPM_GIT_RESOLVE_FAILED`）
+
+pnpm 解析 `github:qilingzon/po-gen#vX.Y.Z` 时默认走 HTTPS；报 ssh 连接错误说明**这台机器的 git 配置把 https 改写成了 ssh**。先确认：
+
+```bash
+git config --global --get-regexp "url\..*\.insteadof"
+```
+
+如果看到 `url.git@github.com:.insteadOf https://github.com/`，二选一：
+
+```bash
+# A. 直接删掉这条 ssh 改写（推荐，HTTP 拉取即可）
+git config --global --unset-all url.git@github.com:.insteadOf
+
+# B. 不想删就加一条反向映射，把 ssh 再指回 https
+git config --global url."https://github.com/".insteadOf "git@github.com:"
+```
+
+改完重试安装即可。**完全不想动 git 配置**的，用「方式 C 一键脚本」或「方式 D 手动 zip」：
+
+它们走 `github.com` 的 release 下载（HTTPS），不经过 git，不需要 ssh key。
 
 ## 隐私与安全
 
