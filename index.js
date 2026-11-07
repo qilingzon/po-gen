@@ -48,7 +48,7 @@ const ACK_TEXT = (() => {
 })();
 
 // 0.5.0 实现修订号：部署验收要求三处副本与该值逐字相等，否则视为"装了旧件"。
-const IMPLEMENTATION_REVISION = "20261107-gen572-presetfallback-1";
+const IMPLEMENTATION_REVISION = "20261107-gen573-preset-roster-1";
 const PROMPT_SET_HASH = createHash("sha256").update(PROMPT_TEXT).digest("hex");
 // GEN5_NORMALIZE: 前置归一化通道开关（A/B 对照时用 0）；GEN5_NORMALIZE_DRYRUN=1 只记录不改写。
 const NORMALIZE_ON = process.env.GEN5_NORMALIZE !== "0";
@@ -1343,6 +1343,9 @@ function activate(ctx, config, presetInstance = false) {
       const add = (name, pass, detail) => checks.push({ name, pass: Boolean(pass), detail: detail === undefined ? "" : String(detail) });
       add("package-version", /^\d+\.\d+\.\d+/.test(PKG_VERSION), PKG_VERSION);
       add("implementation-revision", IMPLEMENTATION_REVISION.length > 0, IMPLEMENTATION_REVISION);
+      // 0.5.73：预设行的来源与数量。行是按「装好的宿主」生成的；宿主换代后
+      // 若忘了重新生成，这里会先变化，配合 CHANGELOG 的回归说明可最快定位。
+      add("preset-rows", ROWS.length > 0, ROWS.length + " rows / " + presetState.mode);
       add("prompt-set-hash", /^[0-9a-f]{64}$/.test(PROMPT_SET_HASH), PROMPT_SET_HASH.slice(0, 16) + "…");
       // 0.5.63：软反水检测器是纯本地规则，这一项证明它真的在装好的这份里可用。
       try {

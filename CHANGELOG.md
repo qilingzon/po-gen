@@ -1,4 +1,38 @@
+## 0.5.73 — 2026-11-07 · 预设行按「已装宿主」重生成（修复 armor 会话全部「不可用」）
+
+### 症状
+
+DSH 桌面端升到 **0.2.2-rc.1** 后，所有绑定 `armor` 预设的会话打开即「会话不可用 / 仅可查看」，模型位变灰、输入框不可写；新建会话也选不了破甲模式。standard 会话完全正常。
+
+### 根因（双保险都失效，实测定位）
+
+0.5.72 的 `preset-rows.js` 是在 **0.2.1** 时代从一份陈旧的 `standard.patch.yml` 抽出来的（`.diag/asar-extract/` 那份）。宿主换代后有两行已经不存在于 0.2.2-rc.1：
+
+| 行 | 0.5.72 写法 | 0.2.2-rc.1 现状 |
+|---|---|---|
+| `tool-subagent-list-agents` | `@deepseek-ai/dsh-tool-subagent-control/list-agents` | 该 subpath 已从 `exports` 移除 → **导入失败** |
+| `tool-subagent` 配置 | `modelSelectionSettings: true` | 改名 `modelSelection` + `modelDiscovery` |
+
+而 `agentPresets.register()` **不校验可导入性**，所以 0.5.72 的 `preset-registered` 一直报 `full`；失败发生在挂载时的激活审计（导入失败 → 拒绝挂载），于是整份预设定义被判无效 → 新绑定全被禁用 → 会话恢复被拒。这解释了「插件显示装了、gen5_verify 全绿、但会话就是不可用」。
+
+### 修法
+
+1. `preset-rows.js` 改为从**当前安装的 app.asar** 内 `@deepseek-ai/dsh-web-app/presets/standard.patch.yml` 重新生成，宿主是什么版本就用什么行。
+2. 新增 `tools/build-preset-rows.mjs`：生成后**逐行（含 group 子行）校验模块说明符是否能在该宿主的 `package.json.exports` 里解析**，任何一行解析不到就拒绝写文件（exit 1）。
+3. `gen5_verify` 新增 `preset-rows` 项（行数 + 当前登记模式），宿主换代后忘了重生成时能第一时间看出来。
+
+### 验证
+
+- `node tools/build-preset-rows.mjs`：`rows=32 (top-level 23)`，全部解析通过，宿主 `v0.2.2-rc.1`。
+- `node tools/build-preset-rows.mjs --check`：对现有 `preset-rows.js` 复检通过。
+- `npm test` 全绿（见本次提交输出）。
+
+### 回归防护
+
+宿主升级后必须重跑 `node tools/build-preset-rows.mjs` 再发版；`preset-registered: full` 不再是「预设能挂」的证据，只能说明 register 调用返回成功。
+
 ## 0.5.69 — 2026-11-07 · discovery-first 归一化 + 真实题干定位修复（A57）
+
 
 ### 起因（实测驱动）
 

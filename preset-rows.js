@@ -1,5 +1,7 @@
-// Generated file. Source: dsh-web-app presets/standard.patch.yml (standard roster).
-// Regenerate with: node D:/deepseek/armor-lab/.diag/build_preset_rows.mjs
+// Generated file — do not edit by hand.
+// Source: installed host app.asar → @deepseek-ai/dsh-web-app/presets/standard.patch.yml (v0.2.2-rc.1)
+// Regenerate: node tools/build-preset-rows.mjs
+// Validated: every row specifier resolves against that host's package exports.
 export const ROWS = [
   {
     "id": "persona",
@@ -31,7 +33,10 @@ export const ROWS = [
   },
   {
     "id": "tool-fs",
-    "name": "@deepseek-ai/dsh-tool-fs"
+    "name": "@deepseek-ai/dsh-tool-fs",
+    "config": {
+      "applyPatch": false
+    }
   },
   {
     "id": "tool-fs-search",
@@ -122,16 +127,13 @@ export const ROWS = [
         "name": "@deepseek-ai/dsh-tool-subagent-control"
       },
       {
-        "id": "tool-subagent-list-agents",
-        "name": "@deepseek-ai/dsh-tool-subagent-control/list-agents"
-      },
-      {
         "id": "tool-subagent",
         "name": "@deepseek-ai/dsh-tool-subagent",
         "config": {
           "provider": "spawn",
           "toolName": "subagent",
-          "modelSelectionSettings": true
+          "modelSelection": true,
+          "modelDiscovery": true
         }
       },
       {
