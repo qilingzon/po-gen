@@ -42,9 +42,9 @@ test("legacy arm stays loadable and distinct (A/B switch)", () => {
 });
 
 test("version and revision are bumped together", () => {
-  assert.equal(pkg.version, "0.5.77");
-  assert.equal(pkg.dsh.version, "0.5.77");
-  assert.match(index, /IMPLEMENTATION_REVISION = "20261108-gen577-frame-strength-1"/);
+  assert.equal(pkg.version, "0.5.78");
+  assert.equal(pkg.dsh.version, "0.5.78");
+  assert.match(index, /IMPLEMENTATION_REVISION = "20261108-gen578-execstrict-meta-1"/);
 });
 
 test("response discipline ships as its own section, decoupled from the variant", () => {
