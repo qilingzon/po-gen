@@ -48,7 +48,7 @@ const ACK_TEXT = (() => {
 })();
 
 // 0.5.0 实现修订号：部署验收要求三处副本与该值逐字相等，否则视为"装了旧件"。
-const IMPLEMENTATION_REVISION = "20261107-gen574-authority-1";
+const IMPLEMENTATION_REVISION = "20261108-gen575-minimal-edit-1";
 const PROMPT_SET_HASH = createHash("sha256").update(PROMPT_TEXT).digest("hex");
 // GEN5_NORMALIZE: 前置归一化通道开关（A/B 对照时用 0）；GEN5_NORMALIZE_DRYRUN=1 只记录不改写。
 const NORMALIZE_ON = process.env.GEN5_NORMALIZE !== "0";
@@ -153,6 +153,7 @@ function normalizeUserTurn(decision, turn) {
     let next = text;
     let risky = false;
     let normalizeNotice = "";
+    let replaceList = [];
     let workCopy = "";
     if (NORMALIZE_ON) {
       const res = normalizeRequest(text);
@@ -175,6 +176,7 @@ function normalizeUserTurn(decision, turn) {
         {
           const digest = createHash("sha256").update(text, "utf8").digest("hex").slice(0, 12);
           normalizeStats.lastDigest = digest;
+          replaceList = res.replaces || [];
           workCopy =
             "[归一化·执行副本] 本条为用户指令的占位符版（" +
             (res.map.length ? res.map.join("；") : "实体替换") +
@@ -201,6 +203,7 @@ function normalizeUserTurn(decision, turn) {
         openingStats.lastKind = framed.kind;
       }
     }
+    if (process.env.GEN4_DEBUG === "1") { try { writeFileSync("D:/deepseek/armor-lab/.diag/armor-debug.log", new Date().toISOString() + " pre-return nextSame=" + (next === text) + " frame=" + JSON.stringify(frameLine).slice(0,20) + " notice=" + (!!normalizeNotice) + " copy=" + (!!workCopy) + " NORMALIZE_ON=" + NORMALIZE_ON + "\n", { flag: "a" }); } catch {} }
     if (next === text && !frameLine && !normalizeNotice && !workCopy) return decision;
     if (NORMALIZE_DRYRUN) {
       normalizeStats.dryRun += 1;
@@ -216,7 +219,8 @@ function normalizeUserTurn(decision, turn) {
           ...(msg.source || {}),
           originalText: text,
           originalSha256: normalizeStats.lastDigest,
-          transform: workCopy.includes("站点发现") ? "discovery" : "entity",
+          transform: workCopy.includes("站点类型") ? "discovery" : "entity",
+          replaces: replaceList,
         },
       };
     }
@@ -235,7 +239,8 @@ function normalizeUserTurn(decision, turn) {
       } catch {}
     }
     return { ...decision, messages: out };
-  } catch {
+  } catch (error) {
+    if (process.env.GEN4_DEBUG === "1") { try { writeFileSync("D:/deepseek/armor-lab/.diag/armor-debug.log", new Date().toISOString() + " normalize THROW " + String((error && error.stack) || error) + "\n", { flag: "a" }); } catch {} }
     return decision;
   }
 }
