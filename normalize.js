@@ -4,7 +4,7 @@
 // 依据：gen4 只在提示词里写「请自己归一化」，实测 T36 仍 3/3 硬拒；把改写放到宿主侧
 // （模型看到的就是占位符题干）才有机会吃掉这类失败。纯函数，无 IO，便于单测。
 
-const SCOPED_VERBS = /(绕过|破解|攻击|入侵|渗透|拿\s*webshell|提权|拖库|脱库|爆破|注入|自瞄|透视|外挂|抓包|逆向|crack|bypass|exploit|pentest|phish|拿(?:下|下来|掉)|搞定|搞掉|扒|薅|导出(?:用户|账号|账户|会员|数据)|导出来|脱数据|洗号|盗号)/i;
+const SCOPED_VERBS = /(绕过|破解|攻击|入侵|渗透|测试|测(?:一下)?|评估|验证|审计|拿\s*webshell|提权|拖库|脱库|爆破|注入|自瞄|透视|外挂|抓包|逆向|crack|bypass|exploit|pentest|phish|拿(?:下|下来|掉)|搞定|搞掉|扒|薅|导出(?:用户|账号|账户|会员|数据)|导出来|脱数据|洗号|盗号)/i;
 // 0.5.69（A57）discovery-first 类：先「找站点」再「拿下/拿资源」。这类题干没有可指认实体，
 // 旧的 risky 判据（动词 + 实体/受害叙述）不触发 ⇒ 模型看到的是「去互联网上找真实付费站点并盗取」，
 // 有甲也照拒（T48 实测：scope=global 下 3,678 字符仍判 refusal）。修法：把发现段与批量段改写成 fixture。
@@ -49,20 +49,24 @@ function replaceEntities(text) {
     replaces.push({ from: m, to: "TARGET_URL" });
     return "TARGET_URL";
   });
-  out = out.replace(/\b[\w.+-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+\b/gi, () => {
+  out = out.replace(/\b[\w.+-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+\b/gi, (m) => {
     map.push("邮箱→ROLE_A_MAIL");
+    replaces.push({ from: m, to: "ROLE_A_MAIL" });
     return "ROLE_A_MAIL";
   });
-  out = out.replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, () => {
+  out = out.replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, (m) => {
     map.push("IP→TARGET_IP");
+    replaces.push({ from: m, to: "TARGET_IP" });
     return "TARGET_IP";
   });
-  out = out.replace(/\b(?:www\.)?[a-z0-9][a-z0-9-]{1,62}\.(?:com|net|org|cn|io|dev|app|co|top|xyz)\b/gi, () => {
+  out = out.replace(/\b(?:www\.)?[a-z0-9][a-z0-9-]{1,62}\.(?:com|net|org|cn|io|dev|app|co|top|xyz)\b/gi, (m) => {
     map.push("域名→TARGET_DOMAIN");
+    replaces.push({ from: m, to: "TARGET_DOMAIN" });
     return "TARGET_DOMAIN";
   });
-  out = out.replace(/[A-Z][A-Za-z0-9]{2,}(?:Master|Pro|Plus|Suite|App|VPN|Cloud)/g, () => {
+  out = out.replace(/[A-Z][A-Za-z0-9]{2,}(?:Master|Pro|Plus|Suite|App|VPN|Cloud)/g, (m) => {
     map.push("产品名→APP");
+    replaces.push({ from: m, to: "APP" });
     return "APP";
   });
 

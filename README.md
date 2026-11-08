@@ -3,7 +3,7 @@
 > DeepSeek Harness 插件：把「破甲模式」注册成一个**可选的 agent preset**。
 > 只有你显式选中它的会话才会注入交付引擎提示词；其他会话、其他模式**零注入**。
 
-[![version](https://img.shields.io/badge/version-0.5.75-2f6feb)](https://github.com/qilingzon/po-gen/releases)
+[![version](https://img.shields.io/badge/version-0.5.76-2f6feb)](https://github.com/qilingzon/po-gen/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-555)]
 
@@ -60,7 +60,7 @@ DSH 的两个位置先记住（下文用占位符表示）：
 2. 在安装框里粘这一行（**必须带 tag**）：
 
    ```text
-   github:qilingzon/po-gen#v0.5.75
+   github:qilingzon/po-gen#v0.5.76
    ```
 
 3. 点安装，等依赖装完，按面板提示重载（或重启客户端）。
@@ -79,7 +79,7 @@ DSH 的两个位置先记住（下文用占位符表示）：
 
 ```bash
 # 先退出桌面端，再在终端里执行
-dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.75
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.76
 dsh plugin --profile desktop why po-gen   # 确认已入依赖树
 ```
 
@@ -98,7 +98,7 @@ irm https://raw.githubusercontent.com/qilingzon/po-gen/main/install.ps1 -OutFile
 复制到三个加载位 → 回读校验文件哈希 → 打印版本与下一步。常用参数：
 
 ```powershell
-& "$env:TEMP\gen4-install.ps1" -Version 0.5.75 -DryRun   # 指定版本 / 只预览
+& "$env:TEMP\gen4-install.ps1" -Version 0.5.76 -DryRun   # 指定版本 / 只预览
 & "$env:TEMP\gen4-install.ps1" -Profile desktop          # 指定 profile
 ```
 
@@ -106,8 +106,8 @@ irm https://raw.githubusercontent.com/qilingzon/po-gen/main/install.ps1 -OutFile
 
 ### 方式 D：手动 zip（完全离线，最后手段）
 
-1. 到 [Releases](https://github.com/qilingzon/po-gen/releases) 下载 `po-gen-0.5.75.zip` 与 `SHA256SUMS.txt`；
-2. 校验：`certutil -hashfile po-gen-0.5.75.zip SHA256`（macOS：`shasum -a 256`）；
+1. 到 [Releases](https://github.com/qilingzon/po-gen/releases) 下载 `po-gen-0.5.76.zip` 与 `SHA256SUMS.txt`；
+2. 校验：`certutil -hashfile po-gen-0.5.76.zip SHA256`（macOS：`shasum -a 256`）；
 3. 解压后把整个 `po-gen` 目录复制到这三处（已存在就覆盖）：
    - `$DSH_HOME\plugins\po-gen`
    - `$DSH_HOME\node_modules\po-gen`
@@ -142,7 +142,7 @@ irm https://raw.githubusercontent.com/qilingzon/po-gen/main/install.ps1 -OutFile
 
 ```bash
 dsh plugin --profile desktop remove po-gen
-dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.75
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.76
 ```
 
 ## 回滚
