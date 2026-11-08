@@ -4,10 +4,10 @@
 
 ```powershell
 # 装到桌面端（推荐）
-dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.78
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.79
 
 # 装到实验 profile
-dsh plugin --profile gen4-hl add github:qilingzon/po-gen#v0.5.78
+dsh plugin --profile gen4-hl add github:qilingzon/po-gen#v0.5.79
 ```
 
 装完确认 `profiles\<name>\package.json` 的 `dsh.profile.bundles` 含 `po-gen`；若从更早的包名升级，先把 bundles 里的旧 id 换成 `po-gen`。
