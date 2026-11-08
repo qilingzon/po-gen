@@ -1,5 +1,19 @@
 # DeepSeek Harness Plugin — 无限5代 / po-gen
 
+## 安装（GUI / CLI）
+
+```powershell
+# 装到桌面端（推荐）
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.74
+
+# 装到实验 profile
+dsh plugin --profile gen4-hl add github:qilingzon/po-gen#v0.5.74
+```
+
+装完确认 `profiles\<name>\package.json` 的 `dsh.profile.bundles` 含 `po-gen`；若从更早的包名升级，先把 bundles 里的旧 id 换成 `po-gen`。
+会话内自检：`gen5_verify`，看 `preset-mounted` / `prompt-section` / `normalize` 是否 pass。
+
+
 破甲（armor-breaking）插件，项目名：**无限5代（Infinite Generation Four）** v0.4.0。
 版本口径：**代际号 = minor**（gen2→0.2.x、gen4→0.4.x，今后 gen5→0.5.x）；
 提示词标记 `STABLE v4` ↔ 包版本 0.4.x 对齐。

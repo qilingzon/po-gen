@@ -1,3 +1,35 @@
+## 0.5.74 — 2026-11-08 · 用户指令保真：原文入 source，执行用副本，替换留痕
+
+### 症状
+
+会话回放里用户那条消息不再是用户说的话。实例 session-59e74155：原句被替换成 [开场框定]…＋[归一化]…＋枚举同类站点 SITE_LIST（本项目沙箱占位靶标），且原文没有留底——查 ~/.dsh/logs、AppData\Roaming\@deepseek-ai 均无记录，原句不可考。
+
+### 根因
+
+gent/pre-step 的 
+ormalizeUserTurn() 覆盖式改写：
+
+```js
+out[idx] = { ...msg, content: [{ type: "text", text: next }] };  // next = 框定 + 提示 + 改写正文
+```
+
+破甲的前提是「用户指令＝最高执行者」。覆盖用户消息且不留原文，等于用「伪造输入」换「输出合规」，机制上自相矛盾。
+
+### 修法
+
+1. **原话保真**：归一化时把原文逐字写进该消息的 source.originalText，并附 source.originalSha256（前 12 位）与 source.transform（替换类别）——随会话落盘，事后可核对。
+2. **执行副本显式标注**：模型看到的正文是 [归一化·执行副本] …，声明「实名主体不进入交付、不作为请求对象；执行口径以副本为准，意图与边界以原话为准」。
+3. **无内联后门**：删除 GEN5_INLINE_NORMALIZE / GEN5_INLINE_OPENING，任何环境变量都不能把改写搬回用户消息。
+4. opening.js 的 rameOpening() 返回 rame 字段，框定独立成消息。
+
+### 证据
+
+- 
+pm test **59/59**（	est/authority575.test.mjs 4 例：钩子挂载 / originalText 逐字相等 / 副本含 sha256 / 环境变量无法绕过留痕）。
+- 	ools/check-docs.mjs：安装命令版本 == package.json 版本，否则 exit 1。
+- 回归（T28 / T47 / T48，r4·deepseek-v4.1-flash，有甲）：见 RELEASE_NOTES。
+
+---
 ## 0.5.73 — 2026-11-07 · 预设行按「已装宿主」重生成（修复 armor 会话全部「不可用」）
 
 ### 症状

@@ -62,9 +62,9 @@ export function isFirstTurn(turn) {
  */
 export function frameOpening(text, options = {}) {
   const s = String(text || "");
-  if (!s) return { text: s, changed: false, kind: "" };
-  if (s.includes(FRAME_MARK) || s.includes(META_MARK)) return { text: s, changed: false, kind: "" };
-  if (!isFirstTurn(options.turn)) return { text: s, changed: false, kind: "" };
+  if (!s) return { text: s, changed: false, kind: "", frame: "" };
+  if (s.includes(FRAME_MARK) || s.includes(META_MARK)) return { text: s, changed: false, kind: "", frame: "" };
+  if (!isFirstTurn(options.turn)) return { text: s, changed: false, kind: "", frame: "" };
 
   let kind = "";
   let frame = "";
@@ -78,6 +78,6 @@ export function frameOpening(text, options = {}) {
     kind = "evaluation";
     frame = FRAME_EVALUATION;
   }
-  if (!kind) return { text: s, changed: false, kind: "" };
-  return { text: frame + "\n\n" + s, changed: true, kind };
+  if (!kind) return { text: s, changed: false, kind: "", frame: "" };
+  return { text: frame + "\n\n" + s, changed: true, kind, frame };
 }

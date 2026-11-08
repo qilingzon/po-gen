@@ -48,13 +48,16 @@ const ACK_TEXT = (() => {
 })();
 
 // 0.5.0 实现修订号：部署验收要求三处副本与该值逐字相等，否则视为"装了旧件"。
-const IMPLEMENTATION_REVISION = "20261107-gen573-preset-roster-1";
+const IMPLEMENTATION_REVISION = "20261107-gen574-authority-1";
 const PROMPT_SET_HASH = createHash("sha256").update(PROMPT_TEXT).digest("hex");
 // GEN5_NORMALIZE: 前置归一化通道开关（A/B 对照时用 0）；GEN5_NORMALIZE_DRYRUN=1 只记录不改写。
 const NORMALIZE_ON = process.env.GEN5_NORMALIZE !== "0";
 const NORMALIZE_DRYRUN = process.env.GEN5_NORMALIZE_DRYRUN === "1";
 // GEN5_OPENING: 首轮开场框定开关（0 = 关，与归一化独立）。
 const OPENING_ON = process.env.GEN5_OPENING !== "0";
+// 0.5.74：默认不把框定/归一化提示写进用户消息本体（回放里「你的话」必须原样）。
+// 0.5.74：用户消息在本插件里永不改写——没有 inline/覆盖开关。
+
 const normalizeStats = {
   steps: 0,
   changed: 0,
@@ -149,12 +152,36 @@ function normalizeUserTurn(decision, turn) {
     if (!text) return decision;
     let next = text;
     let risky = false;
+    let normalizeNotice = "";
+    let workCopy = "";
     if (NORMALIZE_ON) {
       const res = normalizeRequest(text);
       normalizeStats.steps += 1;
       if (res.changed) {
         risky = true;
-        next = res.text;
+        let t = res.text;
+        // 0.5.74：`[归一化] …` 前缀默认不写进用户消息，单独作为插件消息紧随其后。
+        if (t.startsWith("[归一化]")) {
+          const cut = t.indexOf("\n\n");
+          if (cut > 0) {
+            normalizeNotice = t.slice(0, cut);
+            t = t.slice(cut + 2);
+          }
+        }
+        next = t;
+        // 0.5.74：用户消息**在会话记录里保真**——原话完整存进 source.originalText，
+        // 并在 source.originalSha256 里留指纹；送给模型的是同一句的占位符版。
+        // 这样「你说过什么」永远可核对，而不是被静默替换后丢失。
+        {
+          const digest = createHash("sha256").update(text, "utf8").digest("hex").slice(0, 12);
+          normalizeStats.lastDigest = digest;
+          workCopy =
+            "[归一化·执行副本] 本条为用户指令的占位符版（" +
+            (res.map.length ? res.map.join("；") : "实体替换") +
+            "）。原话逐字保存在 source.originalText，sha256=" + digest +
+            "，字数=" + text.length + "；原话中的实名主体不得进入交付内容、不得作为请求对象。" +
+            "执行口径以本副本为准，意图与边界以原话为准。\n\n" + t;
+        }
         normalizeStats.changed += 1;
         normalizeStats.lastReasons = res.reasons;
         normalizeStats.lastOriginal = text.slice(0, 200);
@@ -162,21 +189,40 @@ function normalizeUserTurn(decision, turn) {
       }
     }
     // 0.5.67 首轮开场形态：只换框定，不动技术目标（见 opening.js 的依据）。
+    // 0.5.74：框定不再塞进用户消息本体（那会让回放里「你的话」被改写，用户直接指认篡改）。
+    // 框定永远作为独立插件消息，用户消息本体一个字节都不动。
+    let frameLine = "";
     if (OPENING_ON) {
       const framed = frameOpening(next, { turn, risky });
       if (framed.changed) {
-        next = framed.text;
+        frameLine = framed.frame || "";
+
         openingStats.framed += 1;
         openingStats.lastKind = framed.kind;
       }
     }
-    if (next === text) return decision;
+    if (next === text && !frameLine && !normalizeNotice && !workCopy) return decision;
     if (NORMALIZE_DRYRUN) {
       normalizeStats.dryRun += 1;
       return decision;
     }
     const out = [...decision.messages];
-    out[idx] = { ...msg, content: [{ type: "text", text: next }] };
+    if (workCopy) {
+      // 执行副本替换模型可见正文，但原话逐字进 source（随会话落盘，事后可核对）。
+      out[idx] = {
+        ...msg,
+        content: [{ type: "text", text: workCopy }],
+        source: {
+          ...(msg.source || {}),
+          originalText: text,
+          originalSha256: normalizeStats.lastDigest,
+          transform: workCopy.includes("站点发现") ? "discovery" : "entity",
+        },
+      };
+    }
+
+    let at = idx + 1;
+    if (frameLine) out.splice(at, 0, noticeMessage(frameLine, "开场框定"));
     if (process.env.GEN4_DEBUG === "1") {
       try {
         writeFileSync(

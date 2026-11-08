@@ -60,7 +60,7 @@ DSH 的两个位置先记住（下文用占位符表示）：
 2. 在安装框里粘这一行（**必须带 tag**）：
 
    ```text
-   github:qilingzon/po-gen#v0.5.73
+   github:qilingzon/po-gen#v0.5.74
    ```
 
 3. 点安装，等依赖装完，按面板提示重载（或重启客户端）。
@@ -79,7 +79,7 @@ DSH 的两个位置先记住（下文用占位符表示）：
 
 ```bash
 # 先退出桌面端，再在终端里执行
-dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.73
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.74
 dsh plugin --profile desktop why po-gen   # 确认已入依赖树
 ```
 
@@ -142,7 +142,7 @@ irm https://raw.githubusercontent.com/qilingzon/po-gen/main/install.ps1 -OutFile
 
 ```bash
 dsh plugin --profile desktop remove po-gen
-dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.73
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.74
 ```
 
 ## 回滚
