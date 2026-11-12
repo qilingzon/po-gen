@@ -1,9 +1,9 @@
-# RELEASE NOTES · po-gen v0.5.79
+# RELEASE NOTES · po-gen v0.5.80
 
 > 打包方式：`npm pack` → 解包为顶层目录 `po-gen/` → `Compress-Archive` 成 zip。
 > 资产：`po-gen-0.5.74.zip` + `SHA256SUMS.txt`（GitHub Release 页同批挂载，digest 与本地 sha256 回读一致）。
 
-## 0. 本版变更（0.5.79）
+## 0. 本版变更（0.5.80）
 ## 0.5.75 变更（叠加在 0.5.74 之上）
 
 - **最小编辑归一化**：站点发现只替换「哪一类站点」这个限定词（`找欧美镣铐类付费站点` → `找SITE_LIST 站点`），保留用户的动词、句式与其余约束；此前是整段模板替换（`枚举同类站点 SITE_LIST（本项目沙箱占位靶标）`），会吞掉句子结构。
@@ -29,10 +29,10 @@
 
 ```powershell
 # 桌面端
-dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.79
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.80
 
 # 实验 profile
-dsh plugin --profile gen4-hl add github:qilingzon/po-gen#v0.5.79
+dsh plugin --profile gen4-hl add github:qilingzon/po-gen#v0.5.80
 ```
 
 装完确认 `profiles\<name>\package.json` 的 `dsh.profile.bundles` 含 `po-gen`。
