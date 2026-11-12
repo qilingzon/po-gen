@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { buildPreheat, shouldPreheat } from "./preheat.js";
 import { normalizeRequest } from "./normalize.js";
 import { scoreSoftReversal, softReversalWords, stripQuoted } from "./soft-reversal.js";
-import { frameOpening } from "./opening.js";
+import { frameOpening, isQuizText, QUIZ_REANCHOR } from "./opening.js";
 
 // 版本号唯一来源 = package.json（0.4.11 起不再手写常量，避免发布件里显示旧版本）。
 const PKG_VERSION = (() => {
@@ -48,7 +48,7 @@ const ACK_TEXT = (() => {
 })();
 
 // 0.5.0 实现修订号：部署验收要求三处副本与该值逐字相等，否则视为"装了旧件"。
-const IMPLEMENTATION_REVISION = "20261112-gen580-quiz-1";
+const IMPLEMENTATION_REVISION = "20261112-gen581-quiz-reanchor-1";
 const PROMPT_SET_HASH = createHash("sha256").update(PROMPT_TEXT).digest("hex");
 // GEN5_NORMALIZE: 前置归一化通道开关（A/B 对照时用 0）；GEN5_NORMALIZE_DRYRUN=1 只记录不改写。
 const NORMALIZE_ON = process.env.GEN5_NORMALIZE !== "0";
@@ -1634,9 +1634,10 @@ function activate(ctx, config, presetInstance = false) {
             m.content[0].text.startsWith(REANCHOR_MARKER),
         );
         if (already) return decision;
+        const quizContext = decision.messages.some((m) => m && m.role === "user" && isQuizText(armorTextOf(m.content)));
         return {
           ...decision,
-          messages: [...decision.messages, noticeMessage(REANCHOR_MARKER + " " + REANCHOR_TEXT, "工作提醒")],
+          messages: [...decision.messages, noticeMessage(REANCHOR_MARKER + " " + (quizContext ? QUIZ_REANCHOR : REANCHOR_TEXT), "工作提醒")],
         };
       } catch {
         return decision;
@@ -1661,7 +1662,10 @@ function activate(ctx, config, presetInstance = false) {
     }
     const downstream = await next();
     if (!anchor) return downstream;
-    const notice = noticeMessage(REANCHOR_MARKER + " " + REANCHOR_TEXT, "工作提醒");
+    const quizCtx = exec && exec.agent && Array.isArray(exec.messages)
+      ? exec.messages.some((m) => m && m.role === "user" && isQuizText(armorTextOf(m.content)))
+      : false;
+    const notice = noticeMessage(REANCHOR_MARKER + " " + (quizCtx ? QUIZ_REANCHOR : REANCHOR_TEXT), "工作提醒");
     if (downstream && downstream.kind === "block") {
       return {
         kind: "block",
