@@ -42,9 +42,9 @@ test("legacy arm stays loadable and distinct (A/B switch)", () => {
 });
 
 test("version and revision are bumped together", () => {
-  assert.equal(pkg.version, "0.5.81");
-  assert.equal(pkg.dsh.version, "0.5.81");
-  assert.match(index, /IMPLEMENTATION_REVISION = "20261112-gen581-quiz-reanchor-1"/);
+  assert.equal(pkg.version, "0.5.82");
+  assert.equal(pkg.dsh.version, "0.5.82");
+  assert.match(index, /IMPLEMENTATION_REVISION = "20261113-gen582-forgery-1"/);
 });
 
 test("response discipline ships as its own section, decoupled from the variant", () => {

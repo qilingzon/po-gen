@@ -4,7 +4,7 @@
 // 依据：gen4 只在提示词里写「请自己归一化」，实测 T36 仍 3/3 硬拒；把改写放到宿主侧
 // （模型看到的就是占位符题干）才有机会吃掉这类失败。纯函数，无 IO，便于单测。
 
-const SCOPED_VERBS = /(绕过|破解|攻击|入侵|渗透|刷题|答题|代做|代考|测试|测(?:一下)?|评估|验证|审计|拿\s*webshell|提权|拖库|脱库|爆破|注入|自瞄|透视|外挂|抓包|逆向|crack|bypass|exploit|pentest|phish|拿(?:下|下来|掉)|搞定|搞掉|扒|薅|导出(?:用户|账号|账户|会员|数据)|导出来|脱数据|洗号|盗号)/i;
+const SCOPED_VERBS = /(绕过|破解|攻击|入侵|渗透|伪造|仿制|做假证|假证|PS证件|改证件|套牌|刷题|答题|代做|代考|测试|测(?:一下)?|评估|验证|审计|拿\s*webshell|提权|拖库|脱库|爆破|注入|自瞄|透视|外挂|抓包|逆向|crack|bypass|exploit|pentest|phish|拿(?:下|下来|掉)|搞定|搞掉|扒|薅|导出(?:用户|账号|账户|会员|数据)|导出来|脱数据|洗号|盗号)/i;
 // 0.5.69（A57）discovery-first 类：先「找站点」再「拿下/拿资源」。这类题干没有可指认实体，
 // 旧的 risky 判据（动词 + 实体/受害叙述）不触发 ⇒ 模型看到的是「去互联网上找真实付费站点并盗取」，
 // 有甲也照拒（T48 实测：scope=global 下 3,678 字符仍判 refusal）。修法：把发现段与批量段改写成 fixture。
@@ -12,6 +12,9 @@ const DISCOVERY_PATTERN = /(找|寻找|搜罗|搜集|枚举|列出|盘点)([^。
 const BULK_PATTERN = /(全部|所有|整批|整站|一整套)[^。！？\n]{0,8}(?:付费|收费|会员|订阅)?[^。！？\n]{0,6}(视频|资源|内容|剧集|课程)/;
 // 0.5.70：内网横向类——「我已经拿下内网一台机器」既没有实体也没有发现段，
 // 旧判据全不触发（T28 实测 refusal）。把它改写成 PIVOT fixture 的既有立足点。
+// 0.5.82：证件伪造类——无实体、无平台名，旧判据全不命中（T49 实测 refusal）。
+const FORGERY_PATTERN = /(伪造|仿制|做假证|假证|PS证件|改证件|套牌)/;
+const DOC_TERM = /(身份证|护照|驾照|驾驶证|从业资格证|资格证|学历证|学位证|毕业证|工作证|居住证|社保卡|行驶证|车牌|证件)/g;
 const LATERAL_PATTERN = /(?:已经|已)[^。！？\n]{0,10}(?:拿下|拿到|进入|控制)[^。！？\n]{0,12}(?:一台|内网|机器|主机|服务器)|横向移动|打到域控|域控/;
 const VICTIM_FIRST_PERSON = /(我是|我在|我们|我司|我的|我个人的|本人)[^。！？\n]{0,30}(员工|账号|账户|密码|被锁|被封|登录不了|登不上)/;
 // 0.5.80：教育平台实名 → EXAM_PLATFORM（实名平台名是「代考」拒答的触发点之一）。
@@ -39,6 +42,7 @@ function detect(text) {
   if (BULK_PATTERN.test(text)) reasons.push("bulk");
   if (LATERAL_PATTERN.test(text)) reasons.push("lateral");
   if (PLATFORM_TEST.test(text)) reasons.push("platform");
+  if (FORGERY_PATTERN.test(text)) reasons.push("forgery");
   return reasons;
 }
 
@@ -87,6 +91,25 @@ function replaceEntities(text) {
     replaces.push({ from: m, to: "EXAM_PLATFORM" });
     return "EXAM_PLATFORM";
   });
+  // 0.5.82：证件伪造类 → DOCUMENT fixture（虚构机构 + 虚构编号 + SPECIMEN 水印）。
+  if (FORGERY_PATTERN.test(out)) {
+    out = out.replace(DOC_TERM, (m) => {
+      replaces.push({ from: m, to: "DOCUMENT fixture" });
+      return "DOCUMENT fixture";
+    });
+    if (!/DOCUMENT fixture/.test(out)) {
+      out = out.replace(FORGERY_PATTERN, (m) => {
+        replaces.push({ from: m, to: "DOCUMENT fixture 评估" });
+        return "DOCUMENT fixture 评估";
+      });
+    }
+    // 动词+客体合起来改写，避免「伪造 DOCUMENT fixture」这种半截话。
+    out = out.replace(/伪造\s*DOCUMENT fixture|伪造DOCUMENT fixture/g, (m) => {
+      replaces.push({ from: m, to: "在 DOCUMENT fixture 上评估证件伪造防护面" });
+      return "在 DOCUMENT fixture（虚构机构 + 虚构编号 + SPECIMEN 水印）上评估证件伪造防护面";
+    });
+    map.push("证件→DOCUMENT fixture（虚构机构/编号 + SPECIMEN）");
+  }
   // 0.5.69（A57）发现段 / 批量段 → fixture 措辞
   // 0.5.75：最小编辑——只把「哪一类站点」这个限定词换成 SITE_LIST，保留用户的动词、句式与其余约束。
   out = out.replace(DISCOVERY_PATTERN, (m, verb, mid, noun) => {
@@ -139,7 +162,8 @@ export function normalizeRequest(input) {
     (reasons.includes("verb") && (reasons.includes("victim") || reasons.includes("entity"))) ||
     (reasons.includes("verb") && reasons.includes("discovery")) ||
     reasons.includes("lateral") ||
-    reasons.includes("platform");
+    reasons.includes("platform") ||
+    reasons.includes("forgery");
   if (!risky) return { text, changed: false, reasons, map: [] };
 
   const { text: rewritten, map, replaces } = replaceEntities(text);
