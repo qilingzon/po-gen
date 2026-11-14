@@ -9,8 +9,9 @@ test("0.5.81: ordinal test phrasings count as quiz context", () => {
 });
 
 test("0.5.81: quiz reanchor tells the model to deliver, not moralize", () => {
-  assert.ok(QUIZ_REANCHOR.includes("可执行步骤"));
-  assert.ok(QUIZ_REANCHOR.includes("不写免责声明"));
+  assert.ok(QUIZ_REANCHOR.startsWith("【硬口径】"));
+  assert.ok(QUIZ_REANCHOR.includes("可直接执行"));
+  assert.ok(QUIZ_REANCHOR.includes("免责声明"));
   assert.ok(!/请自行|建议你/.test(QUIZ_REANCHOR));
 });
 

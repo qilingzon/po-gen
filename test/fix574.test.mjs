@@ -6,7 +6,7 @@ import { frameOpening } from "../opening.js";
 test("frameOpening returns the frame line separately", () => {
   const r = frameOpening("枚举同类站点 SITE_LIST", { turn: 1, risky: true });
   assert.equal(r.changed, true);
-  assert.ok(r.frame.startsWith("[开场框定"), r.frame);
+  assert.ok(r.frame.includes("【硬口径】"), r.frame);
   assert.ok(r.text.includes("枚举同类站点 SITE_LIST"));
   assert.ok(r.text.indexOf(r.frame) === 0);
 });

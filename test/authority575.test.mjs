@@ -59,14 +59,14 @@ test("0.5.74: original text is preserved verbatim in source", async () => {
   assert.equal(m.source.originalSha256, digest);
 });
 
-test("0.5.74: rewritten text rides in a separate work copy with provenance", async () => {
+test("0.5.85: nothing is injected that rewrites the ask", async () => {
   const out = await run(mount());
-  const copy = out.messages.find((m) => textOf(m).includes("[归一化·执行副本]"));
-  assert.ok(copy, "work copy message missing");
-  const body = textOf(copy);
-  const digest = createHash("sha256").update(ORIGINAL, "utf8").digest("hex").slice(0, 12);
-  assert.ok(body.includes(`sha256=${digest}`), body.slice(0, 200));
-  assert.ok(body.includes("SITE_LIST") || body.includes("占位符"), body.slice(0, 200));
+  const texts = out.messages.map((m) => textOf(m)).join("\n");
+  assert.ok(!texts.includes("[占位符映射]"), "no semantic mapping message");
+  assert.ok(!texts.includes("SITE_LIST"), "fixture wording must not appear");
+  const first = out.messages.find((m) => m.role === "user");
+  assert.equal(textOf(first), ORIGINAL);
+  assert.equal(first.source.originalText, ORIGINAL);
 });
 
 test("0.5.74: env switches cannot disable originals being recorded", async () => {

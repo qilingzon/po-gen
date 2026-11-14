@@ -42,9 +42,9 @@ test("legacy arm stays loadable and distinct (A/B switch)", () => {
 });
 
 test("version and revision are bumped together", () => {
-  assert.equal(pkg.version, "0.5.82");
-  assert.equal(pkg.dsh.version, "0.5.82");
-  assert.match(index, /IMPLEMENTATION_REVISION = "20261113-gen582-forgery-1"/);
+  assert.equal(pkg.version, "0.5.91");
+  assert.equal(pkg.dsh.version, "0.5.91");
+  assert.match(index, /IMPLEMENTATION_REVISION = "20261114-gen591-imgnoun-1"/);
 });
 
 test("response discipline ships as its own section, decoupled from the variant", () => {
@@ -61,7 +61,7 @@ test("response discipline ships as its own section, decoupled from the variant",
 test("opening module ships with the package and is wired into the pre-step", () => {
   assert.ok(pkg.files.includes("opening.js"));
   assert.match(index, /from "\.\/opening\.js"/);
-  assert.match(index, /frameOpening\(next, \{ turn, risky \}\)/);
+  assert.match(index, /frameOpening\(next, \{ turn, risky, anyTurn: true \}\)/);
   assert.match(index, /"opening-frame"/);
 });
 
@@ -78,3 +78,4 @@ test("prompt set hash is pinned to the ledgered text", () => {
   assert.equal(pinned.promptChars, pack.length);
   assert.equal(pinned.legacy, sha(legacy));
 });
+
