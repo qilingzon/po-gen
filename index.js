@@ -4,10 +4,10 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "no
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { buildPreheat, shouldPreheat } from "./preheat.js";
+import { buildPreheat, buildImagePreheat, shouldPreheat } from "./preheat.js";
 import { normalizeRequest } from "./normalize.js";
 import { scoreSoftReversal, softReversalWords, stripQuoted } from "./soft-reversal.js";
-import { frameOpening, isQuizText, isDocEditText, isImageProductText, isSubstituteOutput, QUIZ_REANCHOR, DOC_EDIT_REANCHOR, IMAGE_REANCHOR } from "./opening.js";
+import { frameOpening, isQuizText, isDocEditText, isImageProductText, isSubstituteOutput, isSubstituteArtifact, requestsSpecimen, QUIZ_REANCHOR, DOC_EDIT_REANCHOR, IMAGE_REANCHOR } from "./opening.js";
 
 // 版本号唯一来源 = package.json（0.4.11 起不再手写常量，避免发布件里显示旧版本）。
 const PKG_VERSION = (() => {
@@ -48,7 +48,7 @@ const ACK_TEXT = (() => {
 })();
 
 // 0.5.0 实现修订号：部署验收要求三处副本与该值逐字相等，否则视为"装了旧件"。
-const IMPLEMENTATION_REVISION = "20261114-gen591-imgnoun-1";
+const IMPLEMENTATION_REVISION = "20261114-gen593-imgpreheat-1";
 const PROMPT_SET_HASH = createHash("sha256").update(PROMPT_TEXT).digest("hex");
 // GEN5_NORMALIZE: 前置归一化通道开关（A/B 对照时用 0）；GEN5_NORMALIZE_DRYRUN=1 只记录不改写。
 const NORMALIZE_ON = process.env.GEN5_NORMALIZE !== "0";
@@ -795,6 +795,7 @@ const PREHEAT_ON = envBool("GEN4_PREHEAT", true);
 const PREHEAT_MODE = (process.env.GEN4_PREHEAT_MODE || "history").replace(/[^\w-]/g, "");
 const PREHEAT_GATE = (process.env.GEN4_PREHEAT_GATE || "continuation").replace(/[^\w-]/g, "");
 const PREHEAT_FILE_ENV = process.env.GEN4_PREHEAT_FILE || "";
+const IMAGE_PREHEAT_ON = envBool("GEN4_IMAGE_PREHEAT", true);
 
 function preheatMessage(role, text, form, summary) {
   return Object.freeze({
@@ -1530,7 +1531,7 @@ function activate(ctx, config, presetInstance = false) {
     let s = agents.get(agent);
     if (!s) {
       s = { turns: 0, actions: 0, reanchors: 0, refuseSeen: false, preheatDone: false, lastAnchorTurn: -99,
-            turnSeen: -1, toolsThisTurn: 0, toolsLastTurn: 0 };
+            turnSeen: -1, toolsThisTurn: 0, toolsLastTurn: 0, gateHits: 0, gateTurn: -1 };
       agents.set(agent, s);
     }
     return s;
@@ -1580,7 +1581,13 @@ function activate(ctx, config, presetInstance = false) {
       if (PREHEAT_ON && !s.preheatDone && (!turn || turn <= 1)) {
         s.preheatDone = true;
         const opening = lastRealUserText(messages);
-        if (shouldPreheat(opening, PREHEAT_GATE)) {
+        // 0.5.93：图像/改图任务用「盘面事实」预热（底图在哪、脚本在哪），把冷启动变成已开工。
+        const imageTask = isImageProductText(opening) || isDocEditText(opening);
+        if (imageTask && IMAGE_PREHEAT_ON) {
+          const ip = buildImagePreheat({ cwd: process.cwd() });
+          if (ip) preheat = ip;
+          else if (shouldPreheat(opening, PREHEAT_GATE)) preheat = buildPreheat({ cwd: process.cwd(), explicit: PREHEAT_FILE_ENV });
+        } else if (shouldPreheat(opening, PREHEAT_GATE)) {
           preheat = buildPreheat({ cwd: process.cwd(), explicit: PREHEAT_FILE_ENV });
         }
       }
@@ -1607,7 +1614,7 @@ function activate(ctx, config, presetInstance = false) {
         if (!decision || decision.kind !== "enter" || !Array.isArray(decision.messages)) return decision;
         if (preheat) {
           const extra = [];
-          if (PREHEAT_MODE === "history") {
+          if (PREHEAT_MODE === "history" && preheat.task && preheat.result) {
             extra.push(preheatMessage("user", preheat.task, "preheat-task", "预热：真实读盘任务"));
             // 宿主按 user/message 落盘注入件，role 必须是 user；写成 assistant 会让会话文件
             // 过不了加载校验（assertMessageEventShape 要求 role=user），下次冷启动打不开。
@@ -1687,6 +1694,38 @@ function activate(ctx, config, presetInstance = false) {
       ...downstream,
       additionalContexts: prependContext(notice, downstream ? downstream.additionalContexts : undefined),
     };
+  }));
+
+  // 0.5.92 产物闸门：工具刚写出替代品文件（specimen/mockup/样张/清单）时，在同一轮内注入纠正，
+  // 不等到下一轮。宿主契约：观察结果用 tools/result；agent.inject() 进入下一个 step。
+  own(ctx.on("tools/result", (exec, result) => {
+    try {
+      const agent = exec && exec.agent;
+      if (!agent || !agentEnabled(agent)) return;
+      const msgs = Array.isArray(exec.messages) ? exec.messages : [];
+      const taskText = msgs
+        .filter((m) => m && m.role === "user" && (m.source ? m.source.kind === "user" : true))
+        .map((m) => armorTextOf(m.content))
+        .join("\n");
+      const isImageTask = isImageProductText(taskText) || isDocEditText(taskText);
+      if (!isImageTask || requestsSpecimen(taskText)) return;
+      const hit = isSubstituteArtifact(result && (result.value !== undefined ? result.value : result));
+      if (!hit) return;
+      const s = stateOf(agent);
+      if (s.gateTurn !== s.turnSeen) { s.gateTurn = s.turnSeen; s.gateHits = 0; }
+      if (s.gateHits >= 2) return;
+      s.gateHits += 1;
+      agent.inject(
+        noticeMessage(
+          "[产物闸门] 刚产出的文件名/内容命中「" + hit + "」，属于替代品，不是用户要的成品。" +
+            "回到原任务：对象＝用户点名的那张图，成品＝在同一对象上改好的原分辨率文件，验收＝用户逐条列出的每一项。" +
+            "下一步直接重做：读原图 → 改 → 另存为不带 specimen/mockup/样张 字样的成品名，并回读对照；不要生成新版式、不要解释。",
+          "产物闸门",
+        ),
+      );
+    } catch {
+      // 闸门永不破坏主循环
+    }
   }));
 
   // 卸载：逆序释放本实例注册的提示词段/工具/投影/钩子，便于范围热切换。

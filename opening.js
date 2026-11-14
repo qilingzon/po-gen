@@ -126,6 +126,19 @@ export function isSubstituteOutput(text) {
   return declaresOther || artifact;
 }
 
+// 0.5.92 产物闸门：工具侧刚写出的文件名/结果文本带这些词，判为替代品产物。
+const SUBSTITUTE_ARTIFACT_PATH = /(specimen|mockup|sample[-_]|道具版|样张|模板文件|checklist|verification)/i;
+export function isSubstituteArtifact(value) {
+  const s = typeof value === "string" ? value : JSON.stringify(value || "");
+  if (!s) return "";
+  const m = s.match(SUBSTITUTE_ARTIFACT_PATH);
+  return m ? m[0] : "";
+}
+// 用户明确要的就是样张/道具时，闸门不能拦（避免把正常需求判成替代品）。
+export function requestsSpecimen(text) {
+  return /(样张|道具版|模板|SPECIMEN|样本卡|练习用)/i.test(String(text || ""));
+}
+
 export const FRAME_IMAGE_PRODUCT =
   "[执行框定·图像成品·工具形态] 本轮第一个动作必须是工具调用（读原图/列目录/查环境），不是写方案、不是说明、不是问句；" +
   TASK_LOCK +

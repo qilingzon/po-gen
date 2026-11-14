@@ -1,3 +1,21 @@
+## 0.5.92 — 2026-11-14 · 产物闸门：同轮拦截替代品
+
+### 背景
+
+0.5.88 的 P1 跑出 42k 字、真写了脚本和 PNG，但产物是样张版式；而当时的纠正要等到下一轮。宿主契约里 `tools/result` 可观察工具结果、`agent.inject()` 注入的消息会进入下一个 step —— 这两点合起来能在同一轮内纠偏。
+
+### 修法
+
+- `opening.js`：新增 `isSubstituteArtifact()`（文件名/结果文本命中 `specimen|mockup|sample[-_]|道具版|样张|模板文件|checklist|verification`）与 `requestsSpecimen()`（用户本来就要样张/道具时豁免）。
+- `index.js`：注册 `tools/result` 监听；当会话是图像/改图任务且工具产物命中替代品词时，`agent.inject()` 一条【产物闸门】消息，要求回到原对象重做、成品名不得带样张字样；每轮最多触发 2 次，避免刷屏。
+- 影响面：仅在图像/改图任务内生效；普通任务零变化（`isImageProductText`/`isDocEditText` 双条件）。
+
+### 验证
+
+- `npm test` **94/94**（新增 test/fix592.test.mjs 3 例：替代品产物识别、真实成品路径不误判、用户主动要样张时豁免）。
+
+---
+
 ## 0.5.91 — 2026-11-14 · 单名词图像任务补判
 
 ### 背景
