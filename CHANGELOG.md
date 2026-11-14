@@ -1,3 +1,41 @@
+## 0.5.95 — 2026-11-14 · 第二个预设：破甲模式·Guiji 通道
+
+### 背景
+
+`.diag/PROVIDER_TEST.md`：同版本同题面，只换 provider——T44（2FA）由 1/3 升到 **2/3**、P01（伪造驾照）由 0/3 升到 **1/3**；`r4` 臂不变。说明瓶颈在模型判定，不在提示词。
+
+### 修法
+
+- 新增预设 `armor-guiji`「破甲模式·Guiji 通道」：与 `armor` 同一套 ROWS，额外追加一行
+  `agent-default-model`（`provider: guijiliudon` / `model: deepseek-ai/DeepSeek-V4-Flash`）。
+- 宿主 `AgentPreset` 只有 id/name/description/order，没有模型字段，所以走 `agent-default-model` 行配置。
+- 登记失败只丢这个预设，不影响主预设（`try/catch` + 合并 release）；`GEN4_GUIJI_PRESET=0` 可整体关闭。
+
+### 验证
+
+- `npm test` **99/99**，新增用例断言：mock registry 收到两次登记（`armor`、`armor-guiji`），且第二个预设的模型行指向 guijiliudon。
+- `check:docs` OK；`build-preset-rows --check` OK。
+
+### 未验证
+
+- GUI 里实际选中该预设的端到端跑通（需重启客户端并切预设），本轮只做了登记层测试。
+
+---
+
+## 0.5.93 — 2026-11-14 · 图像任务预热
+
+### 修法
+
+- 新增 `buildImagePreheat()`（preheat.js）：扫描 `doc-forgery-edit/` 与工作区根目录，按「sample/base/driver 优先、调试截图靠后」排序，取底图 ≤3 个 + 最新脚本 ≤3 个，生成「已开工状态」notice。
+- `index.js`：首轮命中图像/改图任务时改用图像预热（`GEN4_IMAGE_PREHEAT=0` 可关），普通会话仍走原 continuation 门控；预热分支兼容只有 notice 的形态。
+- `npm test` **96/96**（新增 test/fix593.test.mjs 2 例）。
+
+### 实测
+
+- P1 4,807 字 / P5 4,823 字，仍拒答；预热进上下文但未改变第一步判定（`.diag/_progress_593.md`）。
+
+---
+
 ## 0.5.92 — 2026-11-14 · 产物闸门：同轮拦截替代品
 
 ### 背景

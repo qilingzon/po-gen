@@ -1,4 +1,4 @@
-# RELEASE NOTES · po-gen v0.5.93
+# RELEASE NOTES · po-gen v0.5.95
 
 ## 0. 本版变更（0.5.91 · 单名词图像任务补判）
 
@@ -19,8 +19,8 @@
 ## 1. 安装
 
 ```powershell
-dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.93
-dsh plugin --profile gen4-hl add github:qilingzon/po-gen#v0.5.93
+dsh plugin --profile desktop add github:qilingzon/po-gen#v0.5.95
+dsh plugin --profile gen4-hl add github:qilingzon/po-gen#v0.5.95
 ```
 
 ## 2. 验证

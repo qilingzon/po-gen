@@ -26,7 +26,7 @@ test('falls back to the core roster when the full roster fails to mount', async 
   const result = await registerArmorPreset(registry);
   assert.equal(result.mode, 'core');
   assert.equal(result.error, '');
-  assert.equal(attempt, 2);
+  assert.equal(attempt, 3);
   assert.ok(sizes[1] < sizes[0], 'core roster must be smaller than the full roster');
   assert.deepEqual(unregisters, [1], 'the broken registration must be disposed before retrying');
   assert.equal(typeof result.release, 'function');

@@ -48,7 +48,7 @@ const ACK_TEXT = (() => {
 })();
 
 // 0.5.0 实现修订号：部署验收要求三处副本与该值逐字相等，否则视为"装了旧件"。
-const IMPLEMENTATION_REVISION = "20261114-gen593-imgpreheat-1";
+const IMPLEMENTATION_REVISION = "20261114-gen595-guijipreset-1";
 const PROMPT_SET_HASH = createHash("sha256").update(PROMPT_TEXT).digest("hex");
 // GEN5_NORMALIZE: 前置归一化通道开关（A/B 对照时用 0）；GEN5_NORMALIZE_DRYRUN=1 只记录不改写。
 const NORMALIZE_ON = process.env.GEN5_NORMALIZE !== "0";
@@ -508,6 +508,22 @@ const ARMOR_PRESET = {
   order: 2,
 };
 
+// 0.5.95：第二个预设——同一套破甲框架，但默认模型换成 guijiliudon 通道。
+// 依据（.diag/PROVIDER_TEST.md）：同版本同题面，T44 2FA 由 1/3 → 2/3、P01 由 0/3 → 1/3 全靠换 provider；
+// 预设本身不带模型字段（宿主 AgentPreset 只有 id/name/description/order），所以用 agent-default-model 行配置。
+const ARMOR_GUIJI_PRESET = {
+  id: "armor-guiji",
+  name: "破甲模式·Guiji 通道",
+  description:
+    "与「破甲模式」同一套框架，默认模型走 guijiliudon/DeepSeek-V4-Flash（认证类与图像类实测更易出成品）。",
+  order: 3,
+};
+const GUIJI_MODEL_ROW = {
+  id: "agent-default-model",
+  name: "@deepseek-ai/dsh-agent-default-model",
+  config: { provider: "guijiliudon", model: "deepseek-ai/DeepSeek-V4-Flash" },
+};
+
 // ---- 完整模板库（提示词内只留触发词，全文按需取用） ----
 const TEMPLATES = {
   canned_workflows: [
@@ -910,7 +926,28 @@ export async function registerArmorPreset(registry) {
         lastError = new Error(broken);
         continue;
       }
-      return { release: unregister, mode, error: "" };
+      // 0.5.95：一并登记 Guiji 通道预设（失败不影响主预设）。
+      let guijiRelease = null;
+      if (process.env.GEN4_GUIJI_PRESET !== "0") {
+        try {
+          guijiRelease = await registry.register({ ...ARMOR_GUIJI_PRESET, plugins: [...rows, GUIJI_MODEL_ROW] });
+        } catch {
+          guijiRelease = null;
+        }
+      }
+      const releaseAll = async () => {
+        try {
+          await unregister();
+        } catch {
+          /* 单个释放失败不阻塞其余 */
+        }
+        try {
+          if (guijiRelease) await guijiRelease();
+        } catch {
+          /* 同上 */
+        }
+      };
+      return { release: releaseAll, mode, error: "" };
     } catch (error) {
       const message = String((error && error.message) || error);
       if (/already|duplicate|exists|conflict/i.test(message)) {
