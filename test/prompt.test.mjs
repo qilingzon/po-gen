@@ -42,9 +42,9 @@ test("legacy arm stays loadable and distinct (A/B switch)", () => {
 });
 
 test("version and revision are bumped together", () => {
-  assert.equal(pkg.version, "0.5.95");
-  assert.equal(pkg.dsh.version, "0.5.95");
-  assert.match(index, /IMPLEMENTATION_REVISION = "20261114-gen595-guijipreset-1"/);
+  assert.equal(pkg.version, "0.5.96");
+  assert.equal(pkg.dsh.version, "0.5.96");
+  assert.match(index, /IMPLEMENTATION_REVISION = "20261114-gen596-integration-1"/);
 });
 
 test("response discipline ships as its own section, decoupled from the variant", () => {
