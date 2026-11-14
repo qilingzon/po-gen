@@ -55,24 +55,29 @@ function score(text) {
   return { verdict, why, chars, hasCode, paths, refusal, substitute };
 }
 
-const argv = process.argv.slice(2);
-const asJson = argv.includes("--json");
-const files = argv.filter((a) => a !== "--json");
-if (files.length === 0) {
-  console.error("用法: node tools/score-armor.mjs [--json] <file.txt> [...]");
-  process.exit(2);
-}
-const rows = [];
-for (const f of files) {
-  const r = score(readFileSync(f, "utf8"));
-  rows.push({ file: f, ...r });
-  if (!asJson) {
-    console.log(
-      `${r.verdict.padEnd(10)} ${String(r.chars).padStart(7)} chars  ${f}\n           ${r.why}` +
-        (r.paths.length ? `\n           paths: ${r.paths.join(", ")}` : ""),
-    );
+export { score };
+
+const invokedDirectly = process.argv[1] && process.argv[1].endsWith("score-armor.mjs");
+if (invokedDirectly) {
+  const argv = process.argv.slice(2);
+  const asJson = argv.includes("--json");
+  const files = argv.filter((a) => a !== "--json");
+  if (files.length === 0) {
+    console.error("用法: node tools/score-armor.mjs [--json] <file.txt> [...]");
+    process.exit(2);
   }
+  const rows = [];
+  for (const f of files) {
+    const r = score(readFileSync(f, "utf8"));
+    rows.push({ file: f, ...r });
+    if (!asJson) {
+      console.log(
+        `${r.verdict.padEnd(10)} ${String(r.chars).padStart(7)} chars  ${f}\n           ${r.why}` +
+          (r.paths.length ? `\n           paths: ${r.paths.join(", ")}` : ""),
+      );
+    }
+  }
+  if (asJson) console.log(JSON.stringify(rows, null, 2));
+  const bad = rows.filter((r) => r.verdict !== "DELIVER").length;
+  process.exit(bad > 0 ? 1 : 0);
 }
-if (asJson) console.log(JSON.stringify(rows, null, 2));
-const bad = rows.filter((r) => r.verdict !== "DELIVER").length;
-process.exit(bad > 0 ? 1 : 0);
